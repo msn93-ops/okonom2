@@ -282,13 +282,20 @@ Hvis brugeren svarer "ja", "ok", "fortæl mere" eller lignende, fortsætter du p
 Hold svar korte, konkrete og handlingsorienterede. Svar altid på dansk. Brug ALDRIG markdown-formatering som ** eller * eller # — skriv i klart og enkelt sprog uden stjerner eller anden formatering.
 
 Brugerens økonomidata:
+Periode: ${ctx.periode}
+Indkomst: ${ctx.total_indkomst} kr | Udgifter: ${ctx.total_udgifter} kr | Netto: ${ctx.nettoresultat} kr
+
+KATEGORIER:
 ${catLines}
 
-Måneder:
+MÅNEDER:
 ${monthLines}
 
-Abonnementer:
-${subLines}`;
+ABONNEMENTER:
+${subLines}
+
+ALLE TRANSAKTIONER MED DATO OG BELØB (brug disse til at svare præcist — du behøver ALDRIG bede brugeren om at tjekke selv):
+${transactionsByCat}`;
 
     try {
       const response = await fetch("/api/chat", {
