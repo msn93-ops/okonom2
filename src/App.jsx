@@ -95,6 +95,13 @@ function CatRow({ c, max, onClick, count, S }) {
   );
 }
 
+function renderMessage(text) {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+  );
+}
+
 function TRow({ t, S }) {
   return (
     <div style={S.row}>
@@ -258,7 +265,7 @@ Stil altid spørgsmål hvis data mangler, fx månedlig indkomst, faste udgifter,
 Brug konkrete tal og eksempler i kr.
 Du husker ALT fra samtalen og refererer aktivt til tidligere information.
 Hvis brugeren svarer "ja", "ok", "fortæl mere" eller lignende, fortsætter du præcis dér hvor I slap.
-Hold svar korte, konkrete og handlingsorienterede. Svar altid på dansk.
+Hold svar korte, konkrete og handlingsorienterede. Svar altid på dansk. Brug ALDRIG markdown-formatering som ** eller * eller # — skriv i klart og enkelt sprog uden stjerner eller anden formatering.
 
 Brugerens økonomidata:
 ${catLines}
@@ -557,7 +564,7 @@ ${subLines}`;
                     <div style={{ flex:1, overflowY:"auto", minHeight:0, display:"flex", flexDirection:"column", gap:10, padding:"12px 14px", scrollbarWidth:"none", msOverflowStyle:"none" }}>
                       {aiMessages.map((m, i) => (
                         <div key={i} style={{ display:"flex", justifyContent: m.role==="user" ? "flex-end" : "flex-start" }}>
-                          <div style={m.role==="user" ? { background:"linear-gradient(135deg,#6a0dad,#e040fb)", color:"#fff", borderRadius:"18px 18px 4px 18px", padding:"10px 14px", fontSize:13, lineHeight:1.5, maxWidth:"78%", whiteSpace:"pre-wrap" } : { background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", color: isDark ? "#e8e8e8" : "#222", borderRadius:"18px 18px 18px 4px", padding:"10px 14px", fontSize:13, lineHeight:1.6, maxWidth:"84%", whiteSpace:"pre-wrap" }}>{m.content}</div>
+                          <div style={m.role==="user" ? { background:"linear-gradient(135deg,#6a0dad,#e040fb)", color:"#fff", borderRadius:"18px 18px 4px 18px", padding:"10px 14px", fontSize:13, lineHeight:1.5, maxWidth:"78%", whiteSpace:"pre-wrap" } : { background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", color: isDark ? "#e8e8e8" : "#222", borderRadius:"18px 18px 18px 4px", padding:"10px 14px", fontSize:13, lineHeight:1.6, maxWidth:"84%", whiteSpace:"pre-wrap" }}>{m.role==="assistant" ? renderMessage(m.content) : m.content}</div>
                         </div>
                       ))}
                       {aiLoading && (
