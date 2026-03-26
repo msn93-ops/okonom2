@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 
 const CATEGORY_RULES = [
   { keywords: ["netto","fakta","rema","aldi","lidl","meny","irma","bilka","føtex","kvickly","superbrugsen","dagligbrugsen","spar","coop","daglig"], category: "Dagligvarer", icon: "🛒", color: "#4CAF50" },
@@ -136,6 +136,15 @@ export default function App() {
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem("okonom-theme") || "dark";
+  });
+  const isDark = theme === "dark";
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("okonom-theme", next);
+  };
   const [fileName, setFileName] = useState("");
 
   const handleFile = useCallback((file) => {
@@ -282,6 +291,8 @@ ${subLines}`;
     "category-month": selCatMonth ? `${MDA[byMonth.find(m=>m.key===selCatMonth)?.month ?? 0]} ${byMonth.find(m=>m.key===selCatMonth)?.year ?? ""}` : "",
   };
 
+  const S = makeStyles(isDark);
+
   return (
     <div style={S.shell}>
       <div style={S.phone}>
@@ -292,6 +303,9 @@ ${subLines}`;
             <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
               <div style={S.logoCircle}>🧓🏼</div>
               <h1 style={{ margin:0, fontSize:28, fontWeight:800, color:"#fff", letterSpacing:-0.5 }}>Økonom</h1>
+              <button onClick={toggleTheme} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:20, padding:"4px 14px", color:"#fff", fontSize:12, cursor:"pointer", marginTop:4 }}>
+                {isDark ? "☀️ Lys tilstand" : "🌙 Mørk tilstand"}
+              </button>
               <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(224,64,251,0.12)", border:"1px solid rgba(224,64,251,0.3)", borderRadius:20, padding:"4px 12px" }}>
                 <span style={{ fontSize:12 }}>✨</span>
                 <span style={{ fontSize:11, color:"#c084fc", fontWeight:600 }}>AI-drevet privatøkonomi</span>
@@ -327,6 +341,9 @@ ${subLines}`;
                 <h2 style={S.headerTitle}>{titles[view]}</h2>
                 {view === "overview" && <p style={S.headerSub}>{fileName}</p>}
               </div>
+              <button style={S.themeBtn} onClick={toggleTheme} title="Skift tema">
+                {isDark ? "☀️" : "🌙"}
+              </button>
               {view === "overview" && (
                 <button style={S.resetBtn} onClick={() => { setTransactions([]); setView("upload"); }}>↩</button>
               )}
@@ -511,10 +528,10 @@ ${subLines}`;
                       </div>
                     </div>
                   ) : (
-                    <div style={{ flex:1, overflowY:"auto", minHeight:0, display:"flex", flexDirection:"column", gap:10, padding:"12px 14px" }}>
+                    <div style={{ flex:1, overflowY:"auto", minHeight:0, display:"flex", flexDirection:"column", gap:10, padding:"12px 14px", scrollbarWidth:"none", msOverflowStyle:"none" }}>
                       {aiMessages.map((m, i) => (
                         <div key={i} style={{ display:"flex", justifyContent: m.role==="user" ? "flex-end" : "flex-start" }}>
-                          <div style={m.role==="user" ? { background:"linear-gradient(135deg,#6a0dad,#e040fb)", color:"#fff", borderRadius:"18px 18px 4px 18px", padding:"10px 14px", fontSize:13, lineHeight:1.5, maxWidth:"78%", whiteSpace:"pre-wrap" } : { background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.1)", color:"#e8e8e8", borderRadius:"18px 18px 18px 4px", padding:"10px 14px", fontSize:13, lineHeight:1.6, maxWidth:"84%", whiteSpace:"pre-wrap" }}>{m.content}</div>
+                          <div style={m.role==="user" ? { background:"linear-gradient(135deg,#6a0dad,#e040fb)", color:"#fff", borderRadius:"18px 18px 4px 18px", padding:"10px 14px", fontSize:13, lineHeight:1.5, maxWidth:"78%", whiteSpace:"pre-wrap" } : { background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", color: isDark ? "#e8e8e8" : "#222", borderRadius:"18px 18px 18px 4px", padding:"10px 14px", fontSize:13, lineHeight:1.6, maxWidth:"84%", whiteSpace:"pre-wrap" }}>{m.content}</div>
                         </div>
                       ))}
                       {aiLoading && (
@@ -524,9 +541,9 @@ ${subLines}`;
                       )}
                     </div>
                   )}
-                  <div style={{ display:"flex", gap:8, padding:"10px 14px 14px", flexShrink:0, borderTop:"1px solid rgba(255,255,255,0.08)", background:"#0f0f13" }}>
+                  <div style={{ display:"flex", gap:8, padding:"10px 14px 14px", flexShrink:0, borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", background: isDark ? "#0f0f13" : "#ffffff" }}>
                     <input
-                      style={{ flex:1, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", borderRadius:22, padding:"11px 16px", color:"#fff", fontSize:13, outline:"none" }}
+                      style={{ flex:1, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(0,0,0,0.15)", borderRadius:22, padding:"11px 16px", color: isDark ? "#fff" : "#111", fontSize:13, outline:"none" }}
                       placeholder="Stil et spørgsmål..."
                       value={aiInput}
                       onChange={e => setAiInput(e.target.value)}
@@ -551,55 +568,57 @@ ${subLines}`;
   );
 }
 
-const S = {
+const makeStyles = (isDark) => ({
   shell: {
-    minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center",
-    background:"radial-gradient(ellipse at 30% 20%, #1a0a2e 0%, #0d0d0d 60%)",
-    fontFamily:"'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", padding:16,
+    minHeight:"100dvh", display:"flex", alignItems:"center", justifyContent:"center",
+    background: isDark ? "radial-gradient(ellipse at 30% 20%, #1a0a2e 0%, #0d0d0d 60%)" : "#f0f0f5",
+    fontFamily:"'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
+    padding:0,
   },
   phone: {
-    width:"100%", maxWidth:390, height:"88vh", background:"#0f0f13", borderRadius:44,
+    width:"100%", maxWidth:430, height:"100dvh", 
+    background: isDark ? "#0f0f13" : "#ffffff", borderRadius:0,
     overflow:"hidden",
-    boxShadow:"0 40px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.08)",
+    boxShadow: isDark ? "0 40px 80px rgba(0,0,0,0.8)" : "0 4px 24px rgba(0,0,0,0.12)",
     display:"flex", flexDirection:"column",
   },
-  statusBar: {
-    padding:"14px 24px 6px", display:"flex", justifyContent:"space-between",
-    color:"#fff", flexShrink:0,
-  },
-  /* KEY LAYOUT: appLayout is a flex column that fills remaining space.
-     scroll gets flex:1 + minHeight:0 so it can shrink and scroll.
-     nav is flexShrink:0 so it always stays at bottom. */
   appLayout: {
     flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0,
   },
   header: {
-    padding:"10px 18px", display:"flex", alignItems:"center", gap:10,
-    flexShrink:0, borderBottom:"1px solid rgba(255,255,255,0.06)",
+    padding:"12px 18px 10px", display:"flex", alignItems:"center", gap:10,
+    flexShrink:0, borderBottom: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.08)",
   },
-  headerTitle: { margin:0, fontSize:20, fontWeight:700, color:"#fff" },
-  headerSub: { margin:0, fontSize:11, color:"#666", marginTop:1 },
+  headerTitle: { margin:0, fontSize:20, fontWeight:700, color: isDark ? "#fff" : "#111" },
+  headerSub: { margin:0, fontSize:11, color: isDark ? "#666" : "#999", marginTop:1 },
   backBtn: {
-    background:"rgba(255,255,255,0.08)", border:"none", borderRadius:12, color:"#fff",
-    fontSize:18, width:36, height:36, cursor:"pointer", display:"flex",
-    alignItems:"center", justifyContent:"center", flexShrink:0,
+    background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:12,
+    color: isDark ? "#fff" : "#333", fontSize:18, width:36, height:36, cursor:"pointer",
+    display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
   },
   resetBtn: {
-    background:"rgba(255,255,255,0.08)", border:"none", borderRadius:12,
-    color:"#aaa", fontSize:16, width:36, height:36, cursor:"pointer", flexShrink:0,
+    background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:12,
+    color: isDark ? "#aaa" : "#666", fontSize:16, width:36, height:36, cursor:"pointer", flexShrink:0,
+  },
+  themeBtn: {
+    background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:12,
+    color: isDark ? "#aaa" : "#666", fontSize:16, width:36, height:36, cursor:"pointer", flexShrink:0,
+    display:"flex", alignItems:"center", justifyContent:"center",
   },
   scroll: {
     flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden",
     padding:"12px 14px", display:"flex", flexDirection:"column", gap:10,
+    scrollbarWidth:"none", msOverflowStyle:"none",
   },
   nav: {
     flexShrink:0, display:"flex", justifyContent:"space-around",
-    padding:"10px 0 22px", background:"#0f0f13",
-    borderTop:"1px solid rgba(255,255,255,0.08)",
+    padding:"10px 0 env(safe-area-inset-bottom, 16px)",
+    background: isDark ? "#0f0f13" : "#ffffff",
+    borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)",
   },
   navBtn: {
     background:"none", border:"none", cursor:"pointer",
-    display:"flex", flexDirection:"column", alignItems:"center", gap:3, padding:"4px 20px",
+    display:"flex", flexDirection:"column", alignItems:"center", gap:3, padding:"4px 16px",
   },
   uploadScreen: {
     flex:1, display:"flex", flexDirection:"column",
@@ -613,44 +632,49 @@ const S = {
   dropZone: {
     width:"100%", border:"2px dashed rgba(139,47,201,0.5)", borderRadius:20,
     padding:"28px 20px", display:"flex", flexDirection:"column",
-    alignItems:"center", gap:8, cursor:"pointer", background:"rgba(139,47,201,0.05)",
+    alignItems:"center", gap:8, cursor:"pointer",
+    background: isDark ? "rgba(139,47,201,0.05)" : "rgba(139,47,201,0.04)",
   },
   dropActive: { background:"rgba(139,47,201,0.15)", borderColor:"#e040fb" },
   bankTag: {
-    background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)",
-    borderRadius:20, padding:"4px 12px", fontSize:11, color:"#aaa",
+    background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+    border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
+    borderRadius:20, padding:"4px 12px", fontSize:11,
+    color: isDark ? "#aaa" : "#666",
   },
   heroCard: {
-    background:"linear-gradient(135deg,#1a0a2e,#2d1060)",
-    border:"1px solid rgba(224,64,251,0.2)", borderRadius:20,
-    padding:"20px 20px 16px", display:"flex", flexDirection:"column",
+    background: isDark ? "linear-gradient(135deg,#1a0a2e,#2d1060)" : "linear-gradient(135deg,#f3e8ff,#ede9fe)",
+    border: isDark ? "1px solid rgba(224,64,251,0.2)" : "1px solid rgba(139,47,201,0.2)",
+    borderRadius:20, padding:"20px 20px 16px", display:"flex", flexDirection:"column",
     alignItems:"center", gap:6, flexShrink:0,
   },
-  heroLabel: { fontSize:11, color:"rgba(255,255,255,0.4)", fontWeight:500, letterSpacing:1.2, textTransform:"uppercase" },
+  heroLabel: { fontSize:11, color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", fontWeight:500, letterSpacing:1.2, textTransform:"uppercase" },
   heroAmount: { fontSize:36, fontWeight:800, letterSpacing:-1.5 },
   heroRow: { display:"flex", gap:16, alignItems:"center" },
-  heroSub: { fontSize:11, color:"rgba(255,255,255,0.35)" },
+  heroSub: { fontSize:11, color: isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.4)" },
   statRow: { display:"flex", gap:8, flexShrink:0 },
   statBox: {
-    flex:1, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)",
+    flex:1, background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+    border: isDark ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.07)",
     borderRadius:14, padding:"12px 8px", display:"flex", flexDirection:"column",
     alignItems:"center", gap:2,
   },
-  statNum: { fontSize:20, fontWeight:700, color:"#e040fb" },
-  statLabel: { fontSize:9, color:"#666" },
+  statNum: { fontSize:20, fontWeight:700, color:"#9333ea" },
+  statLabel: { fontSize:9, color: isDark ? "#666" : "#999" },
   section: {
-    background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)",
+    background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+    border: isDark ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.08)",
     borderRadius:16, overflow:"hidden", flexShrink:0,
   },
-  sectionTitle: { fontSize:12, fontWeight:600, color:"#888", padding:"12px 14px 4px", display:"block" },
+  sectionTitle: { fontSize:12, fontWeight:600, color: isDark ? "#888" : "#999", padding:"12px 14px 4px", display:"block" },
   row: {
     display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
-    borderTop:"1px solid rgba(255,255,255,0.04)",
+    borderTop: isDark ? "1px solid rgba(255,255,255,0.04)" : "1px solid rgba(0,0,0,0.05)",
   },
-  rowTitle: { fontSize:13, fontWeight:600, color:"#ddd" },
-  rowSub: { fontSize:10, color:"#666", marginTop:1 },
-  rowAmt: { fontSize:12, color:"#f87171", fontWeight:700, flexShrink:0, minWidth:65, textAlign:"right" },
-  barTrack: { flex:1, height:5, background:"rgba(255,255,255,0.07)", borderRadius:3, overflow:"hidden", margin:"4px 0" },
+  rowTitle: { fontSize:13, fontWeight:600, color: isDark ? "#ddd" : "#222" },
+  rowSub: { fontSize:10, color: isDark ? "#666" : "#999", marginTop:1 },
+  rowAmt: { fontSize:12, color:"#ef4444", fontWeight:700, flexShrink:0, minWidth:65, textAlign:"right" },
+  barTrack: { flex:1, height:5, background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)", borderRadius:3, overflow:"hidden", margin:"4px 0" },
   barFill: { height:"100%", borderRadius:3 },
   catIcon: {
     width:36, height:36, borderRadius:10,
@@ -661,6 +685,6 @@ const S = {
     padding:"12px 0 4px", display:"flex", flexDirection:"column",
     alignItems:"center", gap:4, flexShrink:0,
   },
-  detailTotal: { fontSize:32, fontWeight:800, color:"#f87171", letterSpacing:-1 },
-  detailSub: { fontSize:12, color:"#666" },
-};
+  detailTotal: { fontSize:32, fontWeight:800, color:"#ef4444", letterSpacing:-1 },
+  detailSub: { fontSize:12, color: isDark ? "#666" : "#999" },
+});
