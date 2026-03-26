@@ -345,6 +345,11 @@ ${subLines}`;
               <button style={S.themeBtn} onClick={toggleTheme} title="Skift tema">
                 {isDark ? "☀️" : "🌙"}
               </button>
+              {view === "ai" && aiMessages.length > 0 && (
+                <button style={S.resetBtn} onClick={() => setAiMessages([])} title="Nulstil chat">
+                  🗑️
+                </button>
+              )}
               {view === "overview" && (
                 <button style={S.resetBtn} onClick={() => { setTransactions([]); setView("upload"); }}>↩</button>
               )}
@@ -508,7 +513,7 @@ ${subLines}`;
             {/* AI VIEW - outside scroll so it can manage its own layout */}
             {view === "ai" && (() => {
               const quickPrompts = [
-                "Hvad bruger jeg mest penge på?",
+                "Hvad bruger jeg flest penge på?",
                 "Opsummer mine abonnementer",
                 "Hvor kan jeg spare penge?",
                 "Lav en opsparingsplan for mig",
