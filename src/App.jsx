@@ -111,7 +111,7 @@ function TRow({ t, S }) {
 }
 
 function Nav({ view, setView, isDark, S }) {
-  const tabs = [["overview","📊","Overblik"],["months","📅","Måneder"],["categories","🏷️","Kategorier"],["ai","🧓🏼","Holger"]];
+  const tabs = [["overview","📊","Overblik"],["months","📅","Måneder"],["categories","🏷️","Kategorier"],["ai","👴🏼","Holger"]];
   const activeTab = tabs.find(([id]) => id === view)?.[0] ?? null;
   return (
     <div style={S.nav}>
@@ -301,7 +301,7 @@ ${subLines}`;
         {view === "upload" ? (
           <div style={S.uploadScreen}>
             <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
-              <div style={S.logoCircle}>🧓🏼</div>
+              <div style={S.logoCircle}>👴🏼</div>
               <h1 style={{ margin:0, fontSize:28, fontWeight:800, color:"#fff", letterSpacing:-0.5 }}>Økonom</h1>
               <button onClick={toggleTheme} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:20, padding:"4px 14px", color:"#fff", fontSize:12, cursor:"pointer", marginTop:4 }}>
                 {isDark ? "☀️ Lys tilstand" : "🌙 Mørk tilstand"}
@@ -517,7 +517,7 @@ ${subLines}`;
                   {aiMessages.length === 0 ? (
                     <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", padding:"0 14px", gap:10 }}>
                       <div style={{ textAlign:"center", paddingBottom:8 }}>
-                        <div style={{ fontSize:44, marginBottom:8 }}>🧓🏼</div>
+                        <div style={{ fontSize:44, marginBottom:8 }}>👴🏼</div>
                         <div style={{ fontSize:16, fontWeight:700, color:"#fff", marginBottom:4 }}>Holger</div>
                         <div style={{ fontSize:12, color:"#666", lineHeight:1.5 }}>Hej! Jeg er Holger, din personlige økonom.<br/>Hvad kan jeg hjælpe dig med?</div>
                       </div>
