@@ -66,7 +66,7 @@ function parseCSV(text) {
 const MDA = ["Jan","Feb","Mar","Apr","Maj","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
 const fmt = n => Math.abs(n).toLocaleString("da-DK", { minimumFractionDigits:0, maximumFractionDigits:0 }) + " kr.";
 
-function MonthRow({ m, max, onClick }) {
+function MonthRow({ m, max, onClick, S }) {
   return (
     <div style={{ ...S.row, cursor: onClick ? "pointer" : "default" }} onClick={onClick}>
       <div style={{ minWidth: 80 }}>
@@ -79,7 +79,7 @@ function MonthRow({ m, max, onClick }) {
   );
 }
 
-function CatRow({ c, max, onClick, count }) {
+function CatRow({ c, max, onClick, count, S }) {
   return (
     <div style={{ ...S.row, cursor: onClick ? "pointer" : "default" }} onClick={onClick}>
       <div style={{ ...S.catIcon, background: c.color + "22", border: `1.5px solid ${c.color}` }}>{c.icon}</div>
@@ -95,7 +95,7 @@ function CatRow({ c, max, onClick, count }) {
   );
 }
 
-function TRow({ t }) {
+function TRow({ t, S }) {
   return (
     <div style={S.row}>
       <div style={{ ...S.catIcon, background: t.color + "22", border: `1.5px solid ${t.color}`, fontSize: 15 }}>{t.icon}</div>
@@ -110,7 +110,7 @@ function TRow({ t }) {
   );
 }
 
-function Nav({ view, setView }) {
+function Nav({ view, setView, isDark, S }) {
   const tabs = [["overview","📊","Overblik"],["months","📅","Måneder"],["categories","🏷️","Kategorier"],["ai","🧓🏼","Holger"]];
   const activeTab = tabs.find(([id]) => id === view)?.[0] ?? null;
   return (
@@ -368,11 +368,11 @@ ${subLines}`;
                   </div>
                   <div style={S.section}>
                     <span style={S.sectionTitle}>🔥 Største udgifter</span>
-                    {byCategory.slice(0,3).map(c => <CatRow key={c.category} c={c} max={maxCatTotal} onClick={() => { setSelectedCategory(c.category); setView("category"); }} />)}
+                    {byCategory.slice(0,3).map(c => <CatRow key={c.category} c={c} max={maxCatTotal} onClick={() => { setSelectedCategory(c.category); setView("category"); }} S={S} />)}
                   </div>
                   <div style={S.section}>
                     <span style={S.sectionTitle}>📅 Seneste måneder</span>
-                    {byMonth.slice(0,3).map(m => <MonthRow key={m.key} m={m} max={maxMonthTotal} onClick={() => { setSelectedMonth(m.key); setView("month"); }} />)}
+                    {byMonth.slice(0,3).map(m => <MonthRow key={m.key} m={m} max={maxMonthTotal} onClick={() => { setSelectedMonth(m.key); setView("month"); }} S={S} />)}
                   </div>
                   <div style={S.statRow}>
                     {[[transactions.length,"Transaktioner"],[byMonth.length,"Måneder"],[byCategory.length,"Kategorier"]].map(([n,l]) => (
@@ -388,14 +388,14 @@ ${subLines}`;
               {view === "months" && (
                 <div style={S.section}>
                   <span style={S.sectionTitle}>Alle måneder</span>
-                  {byMonth.map(m => <MonthRow key={m.key} m={m} max={maxMonthTotal} onClick={() => { setSelectedMonth(m.key); setView("month"); }} />)}
+                  {byMonth.map(m => <MonthRow key={m.key} m={m} max={maxMonthTotal} onClick={() => { setSelectedMonth(m.key); setView("month"); }} S={S} />)}
                 </div>
               )}
 
               {view === "categories" && (
                 <div style={S.section}>
                   <span style={S.sectionTitle}>Alle kategorier</span>
-                  {byCategory.map(c => <CatRow key={c.category} c={c} max={maxCatTotal} onClick={() => { setSelectedCategory(c.category); setView("category"); }} />)}
+                  {byCategory.map(c => <CatRow key={c.category} c={c} max={maxCatTotal} onClick={() => { setSelectedCategory(c.category); setView("category"); }} S={S} />)}
                 </div>
               )}
 
@@ -415,11 +415,11 @@ ${subLines}`;
                   </div>
                   <div style={S.section}>
                     <span style={S.sectionTitle}>Fordeling</span>
-                    {sorted.map(c => <CatRow key={c.category} c={c} max={max} count={c.count} onClick={() => { setSelectedMonthCategory(c.category); setView("month-category"); }} />)}
+                    {sorted.map(c => <CatRow key={c.category} c={c} max={max} count={c.count} onClick={() => { setSelectedMonthCategory(c.category); setView("month-category"); }} S={S} />)}
                   </div>
                   <div style={S.section}>
                     <span style={S.sectionTitle}>Alle transaktioner</span>
-                    {[...selMonth.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} />)}
+                    {[...selMonth.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
                   </div>
                 </>;
               })()}
@@ -456,7 +456,7 @@ ${subLines}`;
                   )}
                   <div style={S.section}>
                     <span style={S.sectionTitle}>Alle transaktioner</span>
-                    {[...selCat.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} />)}
+                    {[...selCat.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
                   </div>
                 </>;
               })()}
@@ -474,7 +474,7 @@ ${subLines}`;
                   </div>
                   <div style={S.section}>
                     <span style={S.sectionTitle}>Transaktioner</span>
-                    {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} />)}
+                    {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
                   </div>
                 </>;
               })()}
@@ -496,7 +496,7 @@ ${subLines}`;
                   </div>
                   <div style={S.section}>
                     <span style={S.sectionTitle}>Transaktioner</span>
-                    {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} />)}
+                    {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
                   </div>
                 </>;
               })()}
@@ -560,7 +560,7 @@ ${subLines}`;
               );
             })()}
 
-            <Nav view={view} setView={setView} />
+            <Nav view={view} setView={setView} isDark={isDark} S={S} />
           </div>
         )}
       </div>
