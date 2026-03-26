@@ -220,6 +220,7 @@ export default function App() {
     setAiMessages(newMessages);
     setAiInput("");
     setAiLoading(true);
+    // newMessages already contains full history including this new message
 
     const ctx = buildFinancialContext();
 
@@ -233,7 +234,7 @@ export default function App() {
       `- ${s.navn}: ${s.beløb} kr`
     ).join("\n");
 
-    const systemPrompt = `Du er Holger, en dansk privatøkonomisk rådgiver. Svar kortfattet på dansk. Brug kr ved beløb.
+    const systemPrompt = `Du er Holger, en erfaren dansk privatøkonomisk rådgiver. Du husker ALT hvad der er blevet sagt tidligere i samtalen og følger altid op på det. Hvis brugeren svarer "ja", "ok", "fortæl mere" eller lignende, fortsætter du præcis dér hvor I slap. Svar på dansk. Brug kr ved beløb.
 
 Økonomidata:
 Indkomst: ${ctx.total_indkomst} kr | Udgifter: ${ctx.total_udgifter} kr | Netto: ${ctx.nettoresultat} kr
