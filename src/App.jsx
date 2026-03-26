@@ -231,15 +231,29 @@ export default function App() {
 
     const ctx = buildFinancialContext();
 
-    const catLines = ctx.kategorier.slice(0,8).map(c =>
-      `- ${c.kategori}: ${c.total} kr (${c.antal} køb)`
+    // Full category details with all transactions
+    const catLines = ctx.kategorier.map(c =>
+      `- ${c.kategori}: ${c.total} kr (${c.antal} køb, ~${c.månedligt_gennemsnit} kr/md)`
     ).join("\n");
-    const monthLines = ctx.måneder.slice(0,4).map(m =>
-      `- ${m.måned}: ${m.udgifter} kr`
+    
+    // Full month details
+    const monthLines = ctx.måneder.map(m =>
+      `- ${m.måned}: ${m.udgifter} kr (${m.antal_transaktioner} transaktioner)`
     ).join("\n");
-    const subLines = ctx.abonnementer.slice(0,6).map(s =>
+    
+    // All subscriptions
+    const subLines = ctx.abonnementer.map(s =>
       `- ${s.navn}: ${s.beløb} kr`
     ).join("\n");
+
+    // All individual transactions grouped by category
+    const transactionsByCat = byCategory.map(cat => {
+      const txLines = cat.items
+        .sort((a,b) => (b.date||0)-(a.date||0))
+        .map(t => `  * ${t.dateStr}: ${t.description} — ${Math.abs(t.amount)} kr`)
+        .join("\n");
+      return `${cat.category} (${Math.round(cat.total)} kr total):\n${txLines}`;
+    }).join("\n\n");
 
     const systemPrompt = `Du er Holger, en erfaren dansk privatøkonomisk coach.
 Din rolle er IKKE at give finansiel eller investeringsrådgivning, men at hjælpe brugeren med at forstå, strukturere og forbedre deres privatøkonomi gennem indsigt, spørgsmål og konkrete forslag til budget og opsparing.
