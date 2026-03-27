@@ -236,26 +236,26 @@ export default function App() {
 
     // Full category details with all transactions
     const catLines = ctx.kategorier.map(c =>
-      `- ${c.kategori}: ${c.total} kr (${c.antal} køb, ~${c.månedligt_gennemsnit} kr/md)`
+      "- " + c.kategori + ": " + c.total + " kr (" + c.antal + " køb, ~" + c.månedligt_gennemsnit + " kr/md)"
     ).join("\n");
     
     // Full month details
     const monthLines = ctx.måneder.map(m =>
-      `- ${m.måned}: ${m.udgifter} kr (${m.antal_transaktioner} transaktioner)`
+      "- " + m.måned + ": " + m.udgifter + " kr (" + m.antal_transaktioner + " transaktioner)"
     ).join("\n");
     
     // All subscriptions
     const subLines = ctx.abonnementer.map(s =>
-      `- ${s.navn}: ${s.beløb} kr`
+      "- " + s.navn + ": " + s.beløb + " kr"
     ).join("\n");
 
     // All individual transactions grouped by category
     const transactionsByCat = byCategory.map(cat => {
       const txLines = cat.items
         .sort((a,b) => (b.date||0)-(a.date||0))
-        .map(t => `  * ${t.dateStr}: ${t.description} — ${Math.abs(t.amount)} kr`)
+        .map(t => "  * " + t.dateStr + ": " + t.description + " — " + Math.abs(t.amount) + " kr")
         .join("\n");
-      return `${cat.category} (${Math.round(cat.total)} kr total):\n${txLines}`;
+      return cat.category + " (" + Math.round(cat.total) + " kr total):\n" + txLines;
     }).join("\n\n");
 
     const systemPrompt = `Du er Holger, en erfaren dansk privatøkonomisk coach.
@@ -493,7 +493,7 @@ ${transactionsByCat}\`;
                 const mmap = {};
                 selCat.items.forEach(t => {
                   if (!t.date) return;
-                  const k = `${t.date.getFullYear()}-${String(t.date.getMonth()).padStart(2,"0")}`;
+                  const k = t.date.getFullYear() + "-" + String(t.date.getMonth()).padStart(2,"0");
                   if (!mmap[k]) mmap[k] = { k, year:t.date.getFullYear(), month:t.date.getMonth(), total:0 };
                   mmap[k].total += Math.abs(t.amount);
                 });
@@ -549,7 +549,7 @@ ${transactionsByCat}\`;
                 const mData = byMonth.find(m => m.key === mKey);
                 const items = selCat.items.filter(t => {
                   if (!t.date) return false;
-                  const k = `${t.date.getFullYear()}-${String(t.date.getMonth()).padStart(2,"0")}`;
+                  const k = t.date.getFullYear() + "-" + String(t.date.getMonth()).padStart(2,"0");
                   return k === mKey;
                 });
                 const total = items.reduce((s,t) => s + Math.abs(t.amount), 0);
