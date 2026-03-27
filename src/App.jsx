@@ -143,6 +143,9 @@ export default function App() {
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(() => {
+    return localStorage.getItem("okonom-privacy") === "true";
+  });
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem("okonom-theme") || "dark";
   });
@@ -559,7 +562,36 @@ ${transactionsByCat}`;
             </div>{/* end scroll */}
 
             {/* AI VIEW - outside scroll so it can manage its own layout */}
-            {view === "ai" && (() => {
+            {view === "ai" && !privacyAccepted && (
+              <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:"24px 20px", gap:16 }}>
+                <div style={{ fontSize:48 }}>🔒</div>
+                <div style={{ fontSize:18, fontWeight:700, color: isDark ? "#fff" : "#111", textAlign:"center" }}>Inden du starter</div>
+                <div style={{ fontSize:13, color: isDark ? "#aaa" : "#555", lineHeight:1.7, textAlign:"center", maxWidth:300 }}>
+                  Når du stiller Holger spørgsmål, sendes et sammendrag af dine transaktioner til Anthropic's AI-service for at generere svar.
+                  <br/><br/>
+                  <strong style={{ color: isDark ? "#ddd" : "#333" }}>Dine data:</strong><br/>
+                  ✓ Læses kun lokalt i din browser<br/>
+                  ✓ Uploades aldrig til nogen server<br/>
+                  ✓ Sendes kun til Anthropic når du spørger Holger<br/>
+                  ✓ Bruges ikke til at træne AI-modeller
+                </div>
+                <div style={{ fontSize:11, color: isDark ? "#666" : "#999", textAlign:"center", maxWidth:280 }}>
+                  Ved at fortsætte accepterer du at anonymiserede transaktionsdata deles med Anthropic for at besvare dine spørgsmål.
+                </div>
+                <button
+                  onClick={() => { setPrivacyAccepted(true); localStorage.setItem("okonom-privacy","true"); }}
+                  style={{ background:"linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:14, padding:"14px 32px", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                  Jeg forstår og accepterer
+                </button>
+                <button
+                  onClick={() => setView("overview")}
+                  style={{ background:"none", border:"none", color: isDark ? "#666" : "#999", fontSize:13, cursor:"pointer" }}>
+                  Gå tilbage
+                </button>
+              </div>
+            )}
+
+            {view === "ai" && privacyAccepted && (() => {
               const quickPrompts = [
                 "Hvad bruger jeg flest penge på?",
                 "Opsummer mine abonnementer",
