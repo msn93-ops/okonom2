@@ -73,7 +73,7 @@ function MonthRow({ m, max, onClick, S }) {
         <div style={S.rowTitle}>{MDA[m.month]} {m.year}</div>
         <div style={S.rowSub}>{m.items.length} udgifter</div>
       </div>
-      <div style={S.barTrack}><div style={{ ...S.barFill, width: `${(m.total/max)*100}%`, background: "linear-gradient(90deg,#8b2fc9,#e040fb)" }} /></div>
+      <div style={S.barTrack}><div style={{ ...S.barFill, width: ((m.total/max)*100) + "%", background: "linear-gradient(90deg,#8b2fc9,#e040fb)" }} /></div>
       <span style={S.rowAmt}>-{fmt(m.total)}</span>
     </div>
   );
@@ -82,10 +82,10 @@ function MonthRow({ m, max, onClick, S }) {
 function CatRow({ c, max, onClick, count, S }) {
   return (
     <div style={{ ...S.row, cursor: onClick ? "pointer" : "default" }} onClick={onClick}>
-      <div style={{ ...S.catIcon, background: c.color + "22", border: `1.5px solid ${c.color}` }}>{c.icon}</div>
+      <div style={{ ...S.catIcon, background: c.color + "22", border: "1.5px solid " + c.color }}>{c.icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={S.rowTitle}>{c.category}</div>
-        <div style={S.barTrack}><div style={{ ...S.barFill, width: `${(c.total/max)*100}%`, background: c.color }} /></div>
+        <div style={S.barTrack}><div style={{ ...S.barFill, width: ((c.total/max)*100) + "%", background: c.color }} /></div>
       </div>
       <div style={{ textAlign:"right", flexShrink:0 }}>
         <div style={S.rowAmt}>{fmt(c.total)}</div>
@@ -105,7 +105,7 @@ function renderMessage(text) {
 function TRow({ t, S }) {
   return (
     <div style={S.row}>
-      <div style={{ ...S.catIcon, background: t.color + "22", border: `1.5px solid ${t.color}`, fontSize: 15 }}>{t.icon}</div>
+      <div style={{ ...S.catIcon, background: t.color + "22", border: "1.5px solid " + t.color, fontSize: 15 }}>{t.icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ ...S.rowTitle, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.description || "–"}</div>
         <div style={S.rowSub}>{t.dateStr}</div>
@@ -513,7 +513,7 @@ ${transactionsByCat}\`;
                           <div style={{ minWidth:80 }}>
                             <div style={S.rowTitle}>{MDA[m.month]} {m.year}</div>
                           </div>
-                          <div style={S.barTrack}><div style={{ ...S.barFill, width:`${(m.total/maxM)*100}%`, background:selCat.color }} /></div>
+                          <div style={S.barTrack}><div style={{ ...S.barFill, width:((m.total/maxM)*100) + "%", background:selCat.color }} /></div>
                           <span style={S.rowAmt}>-{fmt(m.total)}</span>
                         </div>
                       ))}
@@ -557,7 +557,7 @@ ${transactionsByCat}\`;
                   <div style={S.detailHero}>
                     <span style={{ fontSize:32 }}>{selCat.icon}</span>
                     <span style={S.detailTotal}>-{fmt(total)}</span>
-                    <span style={S.detailSub}>{items.length} transaktioner · {mData ? `${MDA[mData.month]} ${mData.year}` : ""}</span>
+                    <span style={S.detailSub}>{items.length} transaktioner · {mData ? MDA[mData.month] + " " + mData.year : ""}</span>
                   </div>
                   <div style={S.section}>
                     <span style={S.sectionTitle}>Transaktioner</span>
