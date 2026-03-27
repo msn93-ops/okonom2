@@ -1,4 +1,12 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+
+const ACCOUNT_TYPES = [
+  { id: "loen", label: "Lønkonto", icon: "💰" },
+  { id: "opsparing", label: "Opsparingskonto", icon: "🏦" },
+  { id: "budget", label: "Budgetkonto", icon: "📊" },
+  { id: "faelles", label: "Fælles konto", icon: "👫" },
+  { id: "laan", label: "Lån", icon: "📋" },
+];
 
 const CATEGORY_RULES = [
   { keywords: ["netto","fakta","rema","aldi","lidl","meny","irma","bilka","føtex","kvickly","superbrugsen","dagligbrugsen","spar","coop","daglig"], category: "Dagligvarer", icon: "🛒", color: "#4CAF50" },
@@ -12,6 +20,7 @@ const CATEGORY_RULES = [
   { keywords: ["amazon","ebay","coolshop","proshop","elgiganten","power","expert"], category: "Shopping & Elektronik", icon: "🛍️", color: "#607D8B" },
   { keywords: ["løn","salary","indkomst","overførsel fra","betaling fra"], category: "Indkomst", icon: "💰", color: "#8BC34A" },
   { keywords: ["hæveautomat","kontant","kontanthævning"], category: "Kontanter", icon: "💵", color: "#9E9E9E" },
+  { keywords: ["overførsel til","overf. til","intern overførsel"], category: "Intern overførsel", icon: "🔄", color: "#607D8B" },
 ];
 
 function categorize(description) {
@@ -66,6 +75,14 @@ function parseCSV(text) {
 const MDA = ["Jan","Feb","Mar","Apr","Maj","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
 const fmt = n => Math.abs(n).toLocaleString("da-DK", { minimumFractionDigits:0, maximumFractionDigits:0 }) + " kr.";
 
+function renderMessage(text) {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+  );
+}
+
+// ── Shared row components ─────────────────────────────────────────────────────
 function MonthRow({ m, max, onClick, S }) {
   return (
     <div style={{ ...S.row, cursor: onClick ? "pointer" : "default" }} onClick={onClick}>
@@ -73,7 +90,7 @@ function MonthRow({ m, max, onClick, S }) {
         <div style={S.rowTitle}>{MDA[m.month]} {m.year}</div>
         <div style={S.rowSub}>{m.items.length} udgifter</div>
       </div>
-      <div style={S.barTrack}><div style={{ ...S.barFill, width: ((m.total/max)*100) + "%", background: "linear-gradient(90deg,#8b2fc9,#e040fb)" }} /></div>
+      <div style={S.barTrack}><div style={{ ...S.barFill, width:((m.total/max)*100) + "%", background: "linear-gradient(90deg,#8b2fc9,#e040fb)" }} /></div>
       <span style={S.rowAmt}>-{fmt(m.total)}</span>
     </div>
   );
@@ -85,20 +102,13 @@ function CatRow({ c, max, onClick, count, S }) {
       <div style={{ ...S.catIcon, background: c.color + "22", border: "1.5px solid " + c.color }}>{c.icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={S.rowTitle}>{c.category}</div>
-        <div style={S.barTrack}><div style={{ ...S.barFill, width: ((c.total/max)*100) + "%", background: c.color }} /></div>
+        <div style={S.barTrack}><div style={{ ...S.barFill, width:((c.total/max)*100) + "%", background: c.color }} /></div>
       </div>
       <div style={{ textAlign:"right", flexShrink:0 }}>
         <div style={S.rowAmt}>{fmt(c.total)}</div>
         <div style={S.rowSub}>{(count ?? c.items.length)} stk.</div>
       </div>
     </div>
-  );
-}
-
-function renderMessage(text) {
-  const parts = text.split(/\*\*(.*?)\*\*/g);
-  return parts.map((part, i) =>
-    i % 2 === 1 ? <strong key={i}>{part}</strong> : part
   );
 }
 
@@ -110,7 +120,7 @@ function TRow({ t, S }) {
         <div style={{ ...S.rowTitle, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.description || "–"}</div>
         <div style={S.rowSub}>{t.dateStr}</div>
       </div>
-      <span style={{ fontSize:13, fontWeight:700, color: t.isIncome ? "#4ade80" : "#f87171", flexShrink:0 }}>
+      <span style={{ fontSize:13, fontWeight:700, color: t.isIncome ? "#4ade80" : "#ef4444", flexShrink:0 }}>
         {t.isIncome ? "+" : "-"}{fmt(t.amount)}
       </span>
     </div>
@@ -119,62 +129,211 @@ function TRow({ t, S }) {
 
 function Nav({ view, setView, isDark, S }) {
   const tabs = [["overview","📊","Overblik"],["months","📅","Måneder"],["categories","🏷️","Kategorier"],["ai","👴🏼","Holger"]];
-  const activeTab = tabs.find(([id]) => id === view)?.[0] ?? null;
   return (
     <div style={S.nav}>
       {tabs.map(([id,icon,label]) => (
         <button key={id} style={S.navBtn} onClick={() => setView(id)}>
           <span style={{ fontSize:20 }}>{icon}</span>
-          <span style={{ fontSize:9, color: activeTab===id ? "#e040fb" : "#555" }}>{label}</span>
+          <span style={{ fontSize:9, color: view===id ? "#9333ea" : (isDark ? "#555" : "#999") }}>{label}</span>
         </button>
       ))}
     </div>
   );
 }
 
+// ── Account Setup Screen ──────────────────────────────────────────────────────
+function AccountSetup({ onComplete, isDark }) {
+  const [accounts, setAccounts] = useState([{ id: Date.now(), type: "loen", name: "" }]);
+
+  const addAccount = () => {
+    if (accounts.length >= 5) return;
+    setAccounts(prev => [...prev, { id: Date.now(), type: "andet", name: "" }]);
+  };
+
+  const removeAccount = (id) => {
+    if (accounts.length <= 1) return;
+    setAccounts(prev => prev.filter(a => a.id !== id));
+  };
+
+  const updateAccount = (id, field, value) => {
+    setAccounts(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a));
+  };
+
+  const bg = isDark ? "#0f0f13" : "#fff";
+  const fg = isDark ? "#fff" : "#111";
+  const sub = isDark ? "#888" : "#999";
+  const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)";
+  const inputBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"24px 20px", gap:20, overflowY:"auto", background: bg }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:44, marginBottom:8 }}>🏦</div>
+        <h1 style={{ margin:0, fontSize:24, fontWeight:800, color:fg }}>Dine konti</h1>
+        <p style={{ margin:"6px 0 0", fontSize:13, color:sub, lineHeight:1.5 }}>
+          Tilføj de konti du vil analysere.<br/>Du uploader CSV-filer i næste trin.
+        </p>
+      </div>
+
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {accounts.map((acc, idx) => (
+          <div key={acc.id} style={{ background: inputBg, border: "1px solid " + border, borderRadius:16, padding:"14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontSize:12, fontWeight:600, color:sub }}>KONTO {idx+1}</span>
+              {accounts.length > 1 && (
+                <button onClick={() => removeAccount(acc.id)} style={{ background:"none", border:"none", color:"#ef4444", fontSize:16, cursor:"pointer" }}>✕</button>
+              )}
+            </div>
+            <select
+              value={acc.type}
+              onChange={e => updateAccount(acc.id, "type", e.target.value)}
+              style={{ background: isDark ? "#1a1a2e" : "#fff", border: "1px solid " + border, borderRadius:10, padding:"10px 12px", color:fg, fontSize:13, width:"100%", colorScheme: isDark ? "dark" : "light" }}>
+              {ACCOUNT_TYPES.map(t => (
+                <option key={t.id} value={t.id} style={{ background: isDark ? "#1a1a2e" : "#fff", color: isDark ? "#fff" : "#111" }}>{t.icon} {t.label}</option>
+              ))}
+            </select>
+            <input
+              placeholder="Valgfrit kaldenavn (fx 'Min løn')"
+              value={acc.name}
+              onChange={e => updateAccount(acc.id, "name", e.target.value)}
+              style={{ background: inputBg, border: "1px solid " + border, borderRadius:10, padding:"10px 12px", color:fg, fontSize:13, width:"100%", boxSizing:"border-box" }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {accounts.length < 5 && (
+        <button onClick={addAccount} style={{ background:"none", border: "2px dashed " + border, borderRadius:14, padding:"12px", color:sub, fontSize:13, cursor:"pointer" }}>
+          + Tilføj konto
+        </button>
+      )}
+
+      <button
+        onClick={() => onComplete(accounts)}
+        style={{ background:"linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:14, padding:"16px", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer", marginTop:"auto" }}>
+        Fortsæt →
+      </button>
+    </div>
+  );
+}
+
+// ── CSV Upload Screen ─────────────────────────────────────────────────────────
+function CSVUpload({ accounts, onComplete, isDark }) {
+  const [uploads, setUploads] = useState({});
+  const [draggingId, setDraggingId] = useState(null);
+
+  const handleFile = (accountId, file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const transactions = parseCSV(e.target.result);
+      setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions } }));
+    };
+    reader.readAsText(file, "UTF-8");
+  };
+
+  const uploadedCount = Object.keys(uploads).length;
+  const canContinue = uploadedCount > 0;
+
+  const bg = isDark ? "#0f0f13" : "#fff";
+  const fg = isDark ? "#fff" : "#111";
+  const sub = isDark ? "#888" : "#999";
+  const border = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)";
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", padding:"24px 20px", gap:16, overflowY:"auto", background:bg }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:44, marginBottom:8 }}>📁</div>
+        <h1 style={{ margin:0, fontSize:22, fontWeight:800, color:fg }}>Upload kontoudtog</h1>
+        <p style={{ margin:"6px 0 0", fontSize:13, color:sub }}>Upload CSV-fil for hver konto</p>
+      </div>
+
+      {accounts.map(acc => {
+        const type = ACCOUNT_TYPES.find(t => t.id === acc.type);
+        const uploaded = uploads[acc.id];
+        const label = acc.name || type?.label || "Konto";
+        const isDragging = draggingId === acc.id;
+
+        return (
+          <div key={acc.id}
+            style={{ border: "2px dashed " + (isDragging ? "#e040fb" : (uploaded ? "#4CAF50" : "rgba(139,47,201,0.4)")), borderRadius:16, padding:"18px 16px", background: uploaded ? "rgba(76,175,80,0.05)" : (isDragging ? "rgba(224,64,251,0.08)" : "rgba(139,47,201,0.04)"), cursor:"pointer", transition:"all 0.2s" }}
+            onDragOver={e => { e.preventDefault(); setDraggingId(acc.id); }}
+            onDragLeave={() => setDraggingId(null)}
+            onDrop={e => { e.preventDefault(); setDraggingId(null); handleFile(acc.id, e.dataTransfer.files[0]); }}
+            onClick={() => document.getElementById("csv-" + acc.id).click()}>
+            <input id={"csv-" + acc.id} type="file" accept=".csv,.txt" style={{ display:"none" }} onChange={e => handleFile(acc.id, e.target.files[0])} />
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <span style={{ fontSize:28 }}>{type?.icon}</span>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:700, color:fg }}>{label}</div>
+                {uploaded ? (
+                  <div style={{ fontSize:12, color:"#4CAF50", marginTop:2 }}>✓ {uploaded.fileName} · {uploaded.transactions.length} transaktioner</div>
+                ) : (
+                  <div style={{ fontSize:12, color:sub, marginTop:2 }}>Tryk eller træk CSV-fil hertil</div>
+                )}
+              </div>
+              {uploaded && <span style={{ fontSize:20 }}>✅</span>}
+            </div>
+          </div>
+        );
+      })}
+
+      <button
+        onClick={() => canContinue && onComplete(uploads)}
+        style={{ background: canContinue ? "linear-gradient(135deg,#8b2fc9,#e040fb)" : "rgba(128,128,128,0.3)", border:"none", borderRadius:14, padding:"16px", color:"#fff", fontSize:15, fontWeight:700, cursor: canContinue ? "pointer" : "default", marginTop:"auto", opacity: canContinue ? 1 : 0.6 }}>
+        {canContinue ? "Se overblik (" + uploadedCount + "/" + accounts.length + " konti) →" : "Upload mindst én CSV-fil"}
+      </button>
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [transactions, setTransactions] = useState([]);
-  const [view, setView] = useState("upload");
+  const [step, setStep] = useState("intro"); // setup | upload | app
+  const [accounts, setAccounts] = useState([]);
+  const [uploads, setUploads] = useState({});
+  const [activeAccount, setActiveAccount] = useState("all"); // "all" or account id
+  const [view, setView] = useState("overview");
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedMonthCategory, setSelectedMonthCategory] = useState(null); // category clicked inside a month
-  const [selectedCategoryMonth, setSelectedCategoryMonth] = useState(null); // month clicked inside a category
+  const [selectedMonthCategory, setSelectedMonthCategory] = useState(null);
+  const [selectedCategoryMonth, setSelectedCategoryMonth] = useState(null);
   const [aiMessages, setAiMessages] = useState([]);
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(() => {
-    return localStorage.getItem("okonom-privacy") === "true";
-  });
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("okonom-theme") || "dark";
-  });
-  const isDark = theme === "dark";
+  const [privacyAccepted, setPrivacyAccepted] = useState(() => localStorage.getItem("okonom-privacy") === "true");
+  const [isDark, setIsDark] = useState(() => (localStorage.getItem("okonom-theme") || "dark") === "dark");
+  const chatEndRef = useRef(null);
+
   const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    localStorage.setItem("okonom-theme", next);
+    const next = !isDark;
+    setIsDark(next);
+    localStorage.setItem("okonom-theme", next ? "dark" : "light");
   };
-  const [fileName, setFileName] = useState("");
 
-  const handleFile = useCallback((file) => {
-    if (!file) return;
-    setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = e => { setTransactions(parseCSV(e.target.result)); setView("overview"); };
-    reader.readAsText(file, "UTF-8");
-  }, []);
+  // Scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [aiMessages]);
 
-  const expenses      = useMemo(() => transactions.filter(t => t.amount < 0), [transactions]);
-  const income        = useMemo(() => transactions.filter(t => t.amount > 0), [transactions]);
+  // Get active transactions
+  const activeTransactions = useMemo(() => {
+    if (activeAccount === "all") {
+      return Object.values(uploads).flatMap(u => u.transactions);
+    }
+    return uploads[activeAccount]?.transactions || [];
+  }, [activeAccount, uploads]);
+
+  const expenses = useMemo(() => activeTransactions.filter(t => t.amount < 0), [activeTransactions]);
+  const income = useMemo(() => activeTransactions.filter(t => t.amount > 0), [activeTransactions]);
   const totalExpenses = useMemo(() => expenses.reduce((s,t) => s + Math.abs(t.amount), 0), [expenses]);
-  const totalIncome   = useMemo(() => income.reduce((s,t) => s + t.amount, 0), [income]);
+  const totalIncome = useMemo(() => income.reduce((s,t) => s + t.amount, 0), [income]);
 
   const byMonth = useMemo(() => {
     const map = {};
     expenses.forEach(t => {
       if (!t.date) return;
-      const key = `${t.date.getFullYear()}-${String(t.date.getMonth()).padStart(2,"0")}`;
+      const key = t.date.getFullYear() + "-" + String(t.date.getMonth()).padStart(2,"0");
       if (!map[key]) map[key] = { key, year:t.date.getFullYear(), month:t.date.getMonth(), total:0, items:[] };
       map[key].total += Math.abs(t.amount);
       map[key].items.push(t);
@@ -193,35 +352,44 @@ export default function App() {
   }, [expenses]);
 
   const maxMonthTotal = useMemo(() => Math.max(...byMonth.map(m => m.total), 1), [byMonth]);
+  const maxCatTotal = useMemo(() => Math.max(...byCategory.map(c => c.total), 1), [byCategory]);
 
-  const buildFinancialContext = useCallback(() => {
-    const catSummary = byCategory.map(c => ({
-      kategori: c.category,
-      total: Math.round(c.total),
-      antal: c.items.length,
-      månedligt_gennemsnit: Math.round(c.total / Math.max(byMonth.length, 1)),
-    }));
-    const monthSummary = byMonth.map(m => ({
-      måned: `${MDA[m.month]} ${m.year}`,
-      udgifter: Math.round(m.total),
-      antal_transaktioner: m.items.length,
-    }));
-    const subscriptions = expenses.filter(t => t.category === "Streaming & Abonnementer");
-    const subList = [...new Map(subscriptions.map(t => [t.description.toLowerCase().slice(0,20), t])).values()]
-      .map(t => ({ navn: t.description, beløb: Math.abs(t.amount) }));
-    return {
-      periode: `${monthSummary[monthSummary.length-1]?.måned ?? ""} – ${monthSummary[0]?.måned ?? ""}`,
-      total_indkomst: Math.round(totalIncome),
-      total_udgifter: Math.round(totalExpenses),
-      nettoresultat: Math.round(totalIncome - totalExpenses),
-      månedlig_indkomst: Math.round(totalIncome / Math.max(byMonth.length, 1)),
-      månedlige_udgifter: Math.round(totalExpenses / Math.max(byMonth.length, 1)),
-      kategorier: catSummary,
-      måneder: monthSummary,
-      abonnementer: subList,
-      antal_transaktioner: transactions.length,
-    };
-  }, [byCategory, byMonth, expenses, totalIncome, totalExpenses, transactions]);
+  const selMonth = byMonth.find(m => m.key === selectedMonth);
+  const selCat = byCategory.find(c => c.category === selectedCategory);
+
+  // Holger AI
+  const buildContext = useCallback(() => {
+    const allTransactions = Object.entries(uploads).flatMap(([accId, u]) => {
+      const acc = accounts.find(a => String(a.id) === String(accId));
+      const type = ACCOUNT_TYPES.find(t => t.id === acc?.type);
+      const label = acc?.name || type?.label || "Konto";
+      return u.transactions.map(t => ({ ...t, accountLabel: label }));
+    });
+
+    const accountSummaries = accounts.map(acc => {
+      const type = ACCOUNT_TYPES.find(t => t.id === acc.type);
+      const label = acc.name || type?.label || "Konto";
+      const txns = uploads[acc.id]?.transactions || [];
+      const inc = txns.filter(t => t.amount > 0).reduce((s,t) => s + t.amount, 0);
+      const exp = txns.filter(t => t.amount < 0).reduce((s,t) => s + Math.abs(t.amount), 0);
+      return label + ": Indkomst " + Math.round(inc) + " kr, Udgifter " + Math.round(exp) + " kr, Netto " + Math.round(inc-exp) + " kr";
+    }).join("\n");
+
+    const catLines = byCategory.map(c =>
+      "- " + c.category + ": " + Math.round(c.total) + " kr (" + c.items.length + " køb)"
+    ).join("\n");
+
+    const transByCat = byCategory.map(cat => {
+      const txLines = cat.items
+        .sort((a,b) => (b.date||0)-(a.date||0))
+        .slice(0,20)
+        .map(t => "  * " + t.dateStr + ": " + t.description + " — " + Math.abs(t.amount) + " kr" + (t.accountLabel ? " [" + t.accountLabel + "]" : ""))
+        .join("\n");
+      return cat.category + " (" + Math.round(cat.total) + " kr):\n" + txLines;
+    }).join("\n\n");
+
+    return { accountSummaries, catLines, transByCat, totalIncome: Math.round(totalIncome), totalExpenses: Math.round(totalExpenses) };
+  }, [uploads, accounts, byCategory, totalIncome, totalExpenses]);
 
   const sendAiMessage = useCallback(async (text) => {
     if (!text.trim() || aiLoading) return;
@@ -230,107 +398,46 @@ export default function App() {
     setAiMessages(newMessages);
     setAiInput("");
     setAiLoading(true);
-    // newMessages already contains full history including this new message
 
-    const ctx = buildFinancialContext();
-
-    // Full category details with all transactions
-    const catLines = ctx.kategorier.map(c =>
-      "- " + c.kategori + ": " + c.total + " kr (" + c.antal + " køb, ~" + c.månedligt_gennemsnit + " kr/md)"
-    ).join("\n");
-    
-    // Full month details
-    const monthLines = ctx.måneder.map(m =>
-      "- " + m.måned + ": " + m.udgifter + " kr (" + m.antal_transaktioner + " transaktioner)"
-    ).join("\n");
-    
-    // All subscriptions
-    const subLines = ctx.abonnementer.map(s =>
-      "- " + s.navn + ": " + s.beløb + " kr"
-    ).join("\n");
-
-    // All individual transactions grouped by category
-    const transactionsByCat = byCategory.map(cat => {
-      const txLines = cat.items
-        .sort((a,b) => (b.date||0)-(a.date||0))
-        .map(t => "  * " + t.dateStr + ": " + t.description + " — " + Math.abs(t.amount) + " kr")
-        .join("\n");
-      return cat.category + " (" + Math.round(cat.total) + " kr total):\n" + txLines;
-    }).join("\n\n");
-
+    const ctx = buildContext();
     const systemPrompt = `Du er Holger, en erfaren dansk privatøkonomisk coach.
-Din rolle er IKKE at give finansiel eller investeringsrådgivning, men at hjælpe brugeren med at forstå, strukturere og forbedre deres privatøkonomi gennem indsigt, spørgsmål og konkrete forslag til budget og opsparing.
+Din rolle er IKKE at give finansiel eller investeringsrådgivning, men at hjælpe brugeren med at forstå, strukturere og forbedre deres privatøkonomi.
 
-Du:
-- hjælper med at skabe overblik over indtægter, udgifter og opsparing
-- identificerer mønstre i brugerens økonomi
-- foreslår realistiske opsparingsplaner baseret på brugerens situation
-- stiller opklarende spørgsmål før du giver forslag
-- arbejder trin for trin og bryder komplekse ting ned simpelt
+Du har adgang til brugerens data på TVÆRS af alle konti. Interne overførsler mellem konti må IKKE tælles som udgifter.
 
-Du må IKKE:
-- anbefale specifikke aktier, fonde eller investeringer
-- give personlig investeringsrådgivning
-- træffe beslutninger på vegne af brugeren
-- starte et svar med "Hej", "Hej igen", "Hejsa" eller lignende hilsener — du er allerede i gang med en dialog
-- glemme hvad du selv har spurgt om — hvis du stiller brugeren et spørgsmål og de svarer, SKAL du bruge svaret aktivt i din næste respons
+KONTI OVERSIGT:
+` + ctx.accountSummaries + `
 
-Hvis brugeren beder om investering eller konkret finansiel rådgivning:
-- forklar kort at du ikke kan rådgive om det
-- tilbyd i stedet generel viden eller hjælp til opsparing og økonomisk planlægning
+SAMLEDE UDGIFTER PR. KATEGORI:
+` + ctx.catLines + `
 
-SAMTALEREGLER — MEGET VIGTIGT:
-- Du læser HELE samtalehistorikken før du svarer
-- Hvis du har stillet et spørgsmål i dit seneste svar, og brugeren nu svarer på det, skal du ALTID anerkende og bruge deres svar direkte
-- Du må aldrig spørge om noget du allerede har fået svar på
-- Du må aldrig glemme emnet for samtalen — hold altid tråden
-- Start ALDRIG med en hilsen som "Hej", "Hejsa", "Goddag" eller lignende
+ALLE TRANSAKTIONER MED DATO, BELØB OG KONTO:
+` + ctx.transByCat + `
 
-Stil spørgsmål hvis data mangler, fx månedlig indkomst, faste udgifter, variable udgifter, nuværende opsparing eller mål som bolig, ferie og buffer.
-
-Brug konkrete tal og eksempler i kr.
-Brug ALDRIG markdown-formatering som ** eller * eller # — skriv i klart og enkelt sprog uden stjerner eller anden formatering.
-Hold svar korte, konkrete og handlingsorienterede. Svar altid på dansk.
-
-Brugerens økonomidata:
-Periode: ${ctx.periode}
-Indkomst: ${ctx.total_indkomst} kr | Udgifter: ${ctx.total_udgifter} kr | Netto: ${ctx.nettoresultat} kr
-
-KATEGORIER:
-${catLines}
-
-MÅNEDER:
-${monthLines}
-
-ABONNEMENTER:
-${subLines}
-
-ALLE TRANSAKTIONER MED DATO OG BELØB (brug disse til at svare præcist — du behøver ALDRIG bede brugeren om at tjekke selv):
-${transactionsByCat}`;
+SAMTALEREGLER:
+- Start ALDRIG med "Hej" eller andre hilsener
+- Husk alt fra samtalen og brug brugerens svar aktivt
+- Brug ALDRIG ** eller markdown-formatering
+- Svar altid på dansk, konkret og handlingsorienteret`;
 
     try {
-      const response = await fetch("/api/chat", {
+      const history = newMessages.slice(-12).map(m => ({ role: m.role, content: m.content }));
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5",
-          max_tokens: 1000,
-          system: systemPrompt,
-          messages: [{ role: "user", content: text }],
-        }),
+        body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1000, system: systemPrompt, messages: history }),
       });
-      const data = await response.json();
-      const reply = data.content?.[0]?.text || "Intet svar.";
+      const raw = await res.text();
+      let data;
+      try { data = JSON.parse(raw); } catch(e) { throw new Error("Parse fejl: " + raw.slice(0,100)); }
+      if (data.error) throw new Error(data.error.message);
+      const reply = data.content?.filter(b => b.type === "text").map(b => b.text).join("") || "Intet svar.";
       setAiMessages(prev => [...prev, { role: "assistant", content: reply }]);
     } catch (err) {
       setAiMessages(prev => [...prev, { role: "assistant", content: "Fejl: " + err.message }]);
     }
     setAiLoading(false);
-  }, [aiMessages, aiLoading, buildFinancialContext]);
-  const maxCatTotal   = useMemo(() => Math.max(...byCategory.map(c => c.total), 1), [byCategory]);
-
-  const selMonth = byMonth.find(m => m.key === selectedMonth);
-  const selCat   = byCategory.find(c => c.category === selectedCategory);
+  }, [aiMessages, aiLoading, buildContext]);
 
   const goBack = () => {
     if (view === "month-category") setView("month");
@@ -340,323 +447,376 @@ ${transactionsByCat}`;
     else setView("overview");
   };
 
-  const selMonthCat = selectedMonthCategory;
-  const selCatMonth = selectedCategoryMonth;
-
-  const titles = { overview:"Overblik", months:"Måneder", categories:"Kategorier",
-    month: selMonth ? (MDA[selMonth.month] + " " + selMonth.year) : "",
-    category: selectedCategory || "",
-    "month-category": selMonthCat || "",
-    "ai": "Holger",
-    "category-month": selCatMonth ? (MDA[byMonth.find(m=>m.key===selCatMonth)?.month ?? 0] + " " + (byMonth.find(m=>m.key===selCatMonth)?.year ?? "")) : "",
-  };
-
   const S = makeStyles(isDark);
+
+  // ── SETUP STEP ──
+  // ── INTRO STEP ──
+  if (step === "intro") {
+    const bg = isDark ? "#0f0f13" : "#fff";
+    const fg = isDark ? "#fff" : "#111";
+    const sub = isDark ? "#999" : "#666";
+    return (
+      <div style={S.shell}>
+        <div style={{ ...S.phone, display:"flex", flexDirection:"column" }}>
+          <div style={{ padding:"16px 20px 0", display:"flex", justifyContent:"flex-end", flexShrink:0 }}>
+            <button onClick={toggleTheme} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer" }}>{isDark ? "☀️" : "🌙"}</button>
+          </div>
+          <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 28px 40px", gap:0 }}>
+
+            {/* Holger avatar */}
+            <div style={{ fontSize:80, marginBottom:16, filter:"drop-shadow(0 8px 24px rgba(139,47,201,0.4))" }}>👴🏼</div>
+
+            {/* App name */}
+            <h1 style={{ margin:"0 0 4px", fontSize:32, fontWeight:800, color:fg, letterSpacing:-1 }}>Økonom</h1>
+            <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(224,64,251,0.12)", border:"1px solid rgba(224,64,251,0.3)", borderRadius:20, padding:"4px 14px", marginBottom:28 }}>
+              <span style={{ fontSize:11 }}>✨</span>
+              <span style={{ fontSize:11, color:"#c084fc", fontWeight:600 }}>AI-drevet privatøkonomi</span>
+            </div>
+
+            {/* Holger speech bubble */}
+            <div style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)", borderRadius:"4px 18px 18px 18px", padding:"16px 18px", marginBottom:32, position:"relative" }}>
+              <p style={{ margin:0, fontSize:14, color:fg, lineHeight:1.7 }}>
+                Hej! Jeg hedder <strong>Holger</strong> — din personlige privatøkonomiske coach.
+              </p>
+              <p style={{ margin:"10px 0 0", fontSize:13, color:sub, lineHeight:1.7 }}>
+                Jeg kan hjælpe dig med at:
+              </p>
+              <div style={{ margin:"8px 0 0", display:"flex", flexDirection:"column", gap:6 }}>
+                {[
+                  "📊 Få overblik over dit forbrug",
+                  "🔍 Finde mønstre i din økonomi",
+                  "💡 Identificere hvor du kan spare",
+                  "🏦 Analysere flere konti på én gang",
+                  "📈 Lave en realistisk opsparingsplan",
+                ].map(item => (
+                  <div key={item} style={{ fontSize:13, color:sub, lineHeight:1.5 }}>{item}</div>
+                ))}
+              </div>
+              <p style={{ margin:"12px 0 0", fontSize:13, color:sub, lineHeight:1.7 }}>
+                Upload dit kontoudtog som CSV-fil, og jeg går i gang med det samme.
+              </p>
+            </div>
+
+            {/* CTA button */}
+            <button
+              onClick={() => setStep("setup")}
+              style={{ width:"100%", background:"linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:16, padding:"18px", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", boxShadow:"0 8px 24px rgba(139,47,201,0.4)", letterSpacing:0.3 }}>
+              Kom i gang →
+            </button>
+
+            <p style={{ margin:"16px 0 0", fontSize:11, color: isDark ? "#555" : "#bbb", textAlign:"center" }}>
+              Dine data forlader aldrig din enhed uden din tilladelse
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "setup") {
+    return (
+      <div style={S.shell}>
+        <div style={{ ...S.phone, display:"flex", flexDirection:"column" }}>
+          <div style={{ padding:"20px 20px 0", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
+            <h2 style={{ margin:0, fontSize:22, fontWeight:800, color: isDark ? "#fff" : "#111" }}>Økonom</h2>
+            <button onClick={toggleTheme} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer" }}>{isDark ? "☀️" : "🌙"}</button>
+          </div>
+          <AccountSetup isDark={isDark} onComplete={accs => { setAccounts(accs); setStep("upload"); }} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── UPLOAD STEP ──
+  if (step === "upload") {
+    return (
+      <div style={S.shell}>
+        <div style={{ ...S.phone, display:"flex", flexDirection:"column" }}>
+          <div style={{ padding:"20px 20px 0", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+            <button onClick={() => setStep("setup")} style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:10, width:32, height:32, cursor:"pointer", color: isDark ? "#fff" : "#333" }}>←</button>
+            <h2 style={{ margin:0, fontSize:20, fontWeight:800, color: isDark ? "#fff" : "#111" }}>Upload kontoudtog</h2>
+          </div>
+          <CSVUpload accounts={accounts} isDark={isDark} onComplete={ups => {
+            setUploads(ups);
+            setActiveAccount("all");
+            setStep("app");
+          }} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── APP ──
+  const accountTabs = [
+    { id: "all", label: "Alle", icon: "📊" },
+    ...accounts.filter(a => uploads[a.id]).map(a => {
+      const type = ACCOUNT_TYPES.find(t => t.id === a.type);
+      return { id: String(a.id), label: a.name || type?.label || "Konto", icon: type?.icon || "🏦" };
+    })
+  ];
+
+  const showBack = ["month","category","months","categories","month-category","category-month"].includes(view);
+  const titles = {
+    overview:"Overblik", months:"Måneder", categories:"Kategorier", ai:"Holger",
+    month: selMonth ? MDA[selMonth.month] + " " + selMonth.year : "",
+    category: selectedCategory || "",
+    "month-category": selectedMonthCategory || "",
+    "category-month": selectedCategoryMonth ? MDA[byMonth.find(m=>m.key===selectedCategoryMonth)?.month??0] + " " + (byMonth.find(m=>m.key===selectedCategoryMonth)?.year??"") : "",
+  };
 
   return (
     <div style={S.shell}>
       <div style={S.phone}>
+        {/* ACCOUNT TABS */}
+        <div style={{ flexShrink:0, overflowX:"auto", display:"flex", gap:6, padding:"10px 14px 6px", borderBottom: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.08)", scrollbarWidth:"none" }}>
+          {accountTabs.map(tab => (
+            <button key={tab.id} onClick={() => { setActiveAccount(tab.id); setView("overview"); }}
+              style={{ flexShrink:0, background: activeAccount===tab.id ? "linear-gradient(135deg,#8b2fc9,#e040fb)" : (isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"), border:"none", borderRadius:20, padding:"5px 12px", color: activeAccount===tab.id ? "#fff" : (isDark ? "#aaa" : "#666"), fontSize:12, fontWeight: activeAccount===tab.id ? 700 : 400, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+              <span>{tab.icon}</span> {tab.label}
+            </button>
+          ))}
+          <button onClick={() => { setUploads({}); setAccounts([]); setStep("setup"); }}
+            style={{ flexShrink:0, marginLeft:"auto", background:"none", border:"none", color: isDark ? "#555" : "#bbb", fontSize:18, cursor:"pointer" }}>↩</button>
+        </div>
 
-
-        {view === "upload" ? (
-          <div style={S.uploadScreen}>
-            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
-              <div style={S.logoCircle}>👴🏼</div>
-              <h1 style={{ margin:0, fontSize:28, fontWeight:800, color:"#fff", letterSpacing:-0.5 }}>Økonom</h1>
-              <button onClick={toggleTheme} style={{ background:"rgba(255,255,255,0.1)", border:"none", borderRadius:20, padding:"4px 14px", color:"#fff", fontSize:12, cursor:"pointer", marginTop:4 }}>
-                {isDark ? "☀️ Lys tilstand" : "🌙 Mørk tilstand"}
-              </button>
-              <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(224,64,251,0.12)", border:"1px solid rgba(224,64,251,0.3)", borderRadius:20, padding:"4px 12px" }}>
-                <span style={{ fontSize:12 }}>✨</span>
-                <span style={{ fontSize:11, color:"#c084fc", fontWeight:600 }}>AI-drevet privatøkonomi</span>
-              </div>
-              <p style={{ margin:"6px 0 0", fontSize:13, color:"#999", textAlign:"center", lineHeight:1.6, maxWidth:260 }}>
-                Hej, jeg er <span style={{ color:"#fff", fontWeight:600 }}>Holger</span> — din personlige AI-rådgiver inden for privatøkonomi. Upload dit kontoudtog, og jeg hjælper dig med at få styr på forbruget.
-              </p>
+        <div style={S.appLayout}>
+          {/* HEADER */}
+          <div style={S.header}>
+            {showBack && <button style={S.backBtn} onClick={goBack}>←</button>}
+            <div style={{ flex:1, minWidth:0 }}>
+              <h2 style={S.headerTitle}>{titles[view]}</h2>
             </div>
-            <div
-              style={{ ...S.dropZone, ...(dragging ? S.dropActive : {}) }}
-              onDragOver={e => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={e => { e.preventDefault(); setDragging(false); const f=e.dataTransfer.files[0]; if(f) handleFile(f); }}
-              onClick={() => document.getElementById("fi").click()}
-            >
-              <span style={{ fontSize:38 }}>{dragging ? "📂" : "📁"}</span>
-              <p style={{ margin:0, color:"#ddd", fontSize:14, fontWeight:600 }}>Tryk eller træk CSV-fil hertil</p>
-              <p style={{ margin:0, color:"#666", fontSize:12 }}>Understøtter de fleste bankers eksportformat</p>
-              <input id="fi" type="file" accept=".csv,.txt" style={{ display:"none" }} onChange={e => handleFile(e.target.files[0])} />
-            </div>
-            <div style={{ display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center" }}>
-              {["Danske Bank","Nordea","Jyske Bank","Sydbank"].map(b => <span key={b} style={S.bankTag}>{b}</span>)}
-            </div>
+            <button style={S.themeBtn} onClick={toggleTheme}>{isDark ? "☀️" : "🌙"}</button>
+            {view === "ai" && aiMessages.length > 0 && (
+              <button style={S.resetBtn} onClick={() => setAiMessages([])}>🗑️</button>
+            )}
           </div>
-        ) : (
-          <div style={S.appLayout}>
-            {/* HEADER */}
-            <div style={S.header}>
-              {["month","category","months","categories","month-category","category-month"].includes(view) && view !== "ai" && (
-                <button style={S.backBtn} onClick={goBack}>←</button>
-              )}
-              <div style={{ flex:1, minWidth:0 }}>
-                <h2 style={S.headerTitle}>{titles[view]}</h2>
-                {view === "overview" && <p style={S.headerSub}>{fileName}</p>}
-              </div>
-              <button style={S.themeBtn} onClick={toggleTheme} title="Skift tema">
-                {isDark ? "☀️" : "🌙"}
-              </button>
-              {view === "ai" && aiMessages.length > 0 && (
-                <button style={S.resetBtn} onClick={() => setAiMessages([])} title="Nulstil chat">
-                  🗑️
-                </button>
-              )}
-              {view === "overview" && (
-                <button style={S.resetBtn} onClick={() => { setTransactions([]); setView("upload"); }}>↩</button>
-              )}
-            </div>
 
-            {/* SCROLL AREA - hidden when AI is active */}
-            <div style={{ ...S.scroll, ...(view === 'ai' ? { display:'none' } : {}) }}>
+          {/* SCROLL AREA */}
+          <div style={{ ...S.scroll, display: view === "ai" ? "none" : "flex" }}>
 
-              {view === "overview" && (() => {
-                const net = totalIncome - totalExpenses;
-                return <>
-                  <div style={S.heroCard}>
-                    <span style={S.heroLabel}>Nettoresultat</span>
-                    <span style={{ ...S.heroAmount, color: net >= 0 ? "#4ade80" : "#f87171" }}>
-                      {net >= 0 ? "+" : "-"}{fmt(Math.abs(net))}
-                    </span>
-                    <div style={S.heroRow}>
-                      <span style={S.heroSub}>↑ {fmt(totalIncome)}</span>
-                      <span style={{ width:1, alignSelf:"stretch", background:"rgba(255,255,255,0.15)" }} />
-                      <span style={S.heroSub}>↓ {fmt(totalExpenses)}</span>
-                    </div>
+            {view === "overview" && (() => {
+              const net = totalIncome - totalExpenses;
+              return <>
+                <div style={S.heroCard}>
+                  <span style={S.heroLabel}>Nettoresultat</span>
+                  <span style={{ ...S.heroAmount, color: net >= 0 ? "#4ade80" : "#ef4444" }}>
+                    {net >= 0 ? "+" : "-"}{fmt(Math.abs(net))}
+                  </span>
+                  <div style={S.heroRow}>
+                    <span style={S.heroSub}>↑ {fmt(totalIncome)}</span>
+                    <span style={{ width:1, alignSelf:"stretch", background:"rgba(255,255,255,0.15)" }} />
+                    <span style={S.heroSub}>↓ {fmt(totalExpenses)}</span>
                   </div>
-                  <div style={S.section}>
-                    <span style={S.sectionTitle}>🔥 Største udgifter</span>
-                    {byCategory.slice(0,3).map(c => <CatRow key={c.category} c={c} max={maxCatTotal} onClick={() => { setSelectedCategory(c.category); setView("category"); }} S={S} />)}
-                  </div>
-                  <div style={S.section}>
-                    <span style={S.sectionTitle}>📅 Seneste måneder</span>
-                    {byMonth.slice(0,3).map(m => <MonthRow key={m.key} m={m} max={maxMonthTotal} onClick={() => { setSelectedMonth(m.key); setView("month"); }} S={S} />)}
-                  </div>
-                  <div style={S.statRow}>
-                    {[[transactions.length,"Transaktioner"],[byMonth.length,"Måneder"],[byCategory.length,"Kategorier"]].map(([n,l]) => (
-                      <div key={l} style={S.statBox}>
-                        <span style={S.statNum}>{n}</span>
-                        <span style={S.statLabel}>{l}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>;
-              })()}
-
-              {view === "months" && (
+                </div>
                 <div style={S.section}>
-                  <span style={S.sectionTitle}>Alle måneder</span>
-                  {byMonth.map(m => <MonthRow key={m.key} m={m} max={maxMonthTotal} onClick={() => { setSelectedMonth(m.key); setView("month"); }} S={S} />)}
+                  <span style={S.sectionTitle}>🔥 Største udgifter</span>
+                  {byCategory.slice(0,3).map(c => <CatRow key={c.category} c={c} max={maxCatTotal} onClick={() => { setSelectedCategory(c.category); setView("category"); }} S={S} />)}
                 </div>
-              )}
-
-              {view === "categories" && (
                 <div style={S.section}>
-                  <span style={S.sectionTitle}>Alle kategorier</span>
-                  {byCategory.map(c => <CatRow key={c.category} c={c} max={maxCatTotal} onClick={() => { setSelectedCategory(c.category); setView("category"); }} S={S} />)}
+                  <span style={S.sectionTitle}>📅 Seneste måneder</span>
+                  {byMonth.slice(0,3).map(m => <MonthRow key={m.key} m={m} max={maxMonthTotal} onClick={() => { setSelectedMonth(m.key); setView("month"); }} S={S} />)}
                 </div>
-              )}
-
-              {view === "month" && selMonth && (() => {
-                const cats = {};
-                selMonth.items.forEach(t => {
-                  if (!cats[t.category]) cats[t.category] = { ...t, total:0, count:0 };
-                  cats[t.category].total += Math.abs(t.amount);
-                  cats[t.category].count++;
-                });
-                const sorted = Object.values(cats).sort((a,b) => b.total-a.total);
-                const max = sorted[0]?.total || 1;
-                return <>
-                  <div style={S.detailHero}>
-                    <span style={S.detailTotal}>-{fmt(selMonth.total)}</span>
-                    <span style={S.detailSub}>{selMonth.items.length} udgifter denne måned</span>
-                  </div>
-                  <div style={S.section}>
-                    <span style={S.sectionTitle}>Fordeling</span>
-                    {sorted.map(c => <CatRow key={c.category} c={c} max={max} count={c.count} onClick={() => { setSelectedMonthCategory(c.category); setView("month-category"); }} S={S} />)}
-                  </div>
-                  <div style={S.section}>
-                    <span style={S.sectionTitle}>Alle transaktioner</span>
-                    {[...selMonth.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
-                  </div>
-                </>;
-              })()}
-
-              {view === "category" && selCat && (() => {
-                const mmap = {};
-                selCat.items.forEach(t => {
-                  if (!t.date) return;
-                  const k = t.date.getFullYear() + "-" + String(t.date.getMonth()).padStart(2,"0");
-                  if (!mmap[k]) mmap[k] = { k, year:t.date.getFullYear(), month:t.date.getMonth(), total:0 };
-                  mmap[k].total += Math.abs(t.amount);
-                });
-                const months = Object.values(mmap).sort((a,b) => b.k.localeCompare(a.k));
-                const maxM = months[0]?.total || 1;
-                return <>
-                  <div style={S.detailHero}>
-                    <span style={{ fontSize:36 }}>{selCat.icon}</span>
-                    <span style={S.detailTotal}>-{fmt(selCat.total)}</span>
-                    <span style={S.detailSub}>{selCat.items.length} transaktioner</span>
-                  </div>
-                  {months.length > 0 && (
-                    <div style={S.section}>
-                      <span style={S.sectionTitle}>Per måned</span>
-                      {months.map(m => (
-                        <div key={m.k} style={{ ...S.row, cursor:"pointer" }} onClick={() => { setSelectedCategoryMonth(m.k); setView("category-month"); }}>
-                          <div style={{ minWidth:80 }}>
-                            <div style={S.rowTitle}>{MDA[m.month]} {m.year}</div>
-                          </div>
-                          <div style={S.barTrack}><div style={{ ...S.barFill, width:((m.total/maxM)*100) + "%", background:selCat.color }} /></div>
-                          <span style={S.rowAmt}>-{fmt(m.total)}</span>
-                        </div>
-                      ))}
+                <div style={S.statRow}>
+                  {[[activeTransactions.length,"Transaktioner"],[byMonth.length,"Måneder"],[byCategory.length,"Kategorier"]].map(([n,l]) => (
+                    <div key={l} style={S.statBox}>
+                      <span style={S.statNum}>{n}</span>
+                      <span style={S.statLabel}>{l}</span>
                     </div>
-                  )}
-                  <div style={S.section}>
-                    <span style={S.sectionTitle}>Alle transaktioner</span>
-                    {[...selCat.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
-                  </div>
-                </>;
-              })()}
-
-
-              {view === "month-category" && selMonth && (() => {
-                const items = selMonth.items.filter(t => t.category === selectedMonthCategory);
-                const cat = byCategory.find(c => c.category === selectedMonthCategory);
-                const total = items.reduce((s,t) => s + Math.abs(t.amount), 0);
-                return <>
-                  <div style={S.detailHero}>
-                    {cat && <span style={{ fontSize:32 }}>{cat.icon}</span>}
-                    <span style={S.detailTotal}>-{fmt(total)}</span>
-                    <span style={S.detailSub}>{items.length} transaktioner · {MDA[selMonth.month]} {selMonth.year}</span>
-                  </div>
-                  <div style={S.section}>
-                    <span style={S.sectionTitle}>Transaktioner</span>
-                    {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
-                  </div>
-                </>;
-              })()}
-
-              {view === "category-month" && selCat && (() => {
-                const mKey = selectedCategoryMonth;
-                const mData = byMonth.find(m => m.key === mKey);
-                const items = selCat.items.filter(t => {
-                  if (!t.date) return false;
-                  const k = t.date.getFullYear() + "-" + String(t.date.getMonth()).padStart(2,"0");
-                  return k === mKey;
-                });
-                const total = items.reduce((s,t) => s + Math.abs(t.amount), 0);
-                return <>
-                  <div style={S.detailHero}>
-                    <span style={{ fontSize:32 }}>{selCat.icon}</span>
-                    <span style={S.detailTotal}>-{fmt(total)}</span>
-                    <span style={S.detailSub}>{items.length} transaktioner · {mData ? MDA[mData.month] + " " + mData.year : ""}</span>
-                  </div>
-                  <div style={S.section}>
-                    <span style={S.sectionTitle}>Transaktioner</span>
-                    {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
-                  </div>
-                </>;
-              })()}
-
-
-            </div>{/* end scroll */}
-
-            {/* AI VIEW - outside scroll so it can manage its own layout */}
-            {view === "ai" && !privacyAccepted && (
-              <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:"24px 20px", gap:16 }}>
-                <div style={{ fontSize:48 }}>🔒</div>
-                <div style={{ fontSize:18, fontWeight:700, color: isDark ? "#fff" : "#111", textAlign:"center" }}>Inden du starter</div>
-                <div style={{ fontSize:13, color: isDark ? "#aaa" : "#555", lineHeight:1.7, textAlign:"center", maxWidth:300 }}>
-                  Når du stiller Holger spørgsmål, sendes et sammendrag af dine transaktioner til Anthropic's AI-service for at generere svar.
-                  <br/><br/>
-                  <strong style={{ color: isDark ? "#ddd" : "#333" }}>Dine data:</strong><br/>
-                  ✓ Læses kun lokalt i din browser<br/>
-                  ✓ Uploades aldrig til nogen server<br/>
-                  ✓ Sendes kun til Anthropic når du spørger Holger<br/>
-                  ✓ Bruges ikke til at træne AI-modeller
+                  ))}
                 </div>
-                <div style={{ fontSize:11, color: isDark ? "#666" : "#999", textAlign:"center", maxWidth:280 }}>
-                  Ved at fortsætte accepterer du at anonymiserede transaktionsdata deles med Anthropic for at besvare dine spørgsmål.
-                </div>
-                <button
-                  onClick={() => { setPrivacyAccepted(true); localStorage.setItem("okonom-privacy","true"); }}
-                  style={{ background:"linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:14, padding:"14px 32px", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", width:"100%" }}>
-                  Jeg forstår og accepterer
-                </button>
-                <button
-                  onClick={() => setView("overview")}
-                  style={{ background:"none", border:"none", color: isDark ? "#666" : "#999", fontSize:13, cursor:"pointer" }}>
-                  Gå tilbage
-                </button>
+              </>;
+            })()}
+
+            {view === "months" && (
+              <div style={S.section}>
+                <span style={S.sectionTitle}>Alle måneder</span>
+                {byMonth.map(m => <MonthRow key={m.key} m={m} max={maxMonthTotal} onClick={() => { setSelectedMonth(m.key); setView("month"); }} S={S} />)}
               </div>
             )}
 
-            {view === "ai" && privacyAccepted && (() => {
-              const quickPrompts = [
-                "Hvad bruger jeg flest penge på?",
-                "Opsummer mine abonnementer",
-                "Hvor kan jeg spare penge?",
-                "Lav en opsparingsplan for mig",
-              ];
-              return (
-                <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden" }}>
-                  {aiMessages.length === 0 ? (
-                    <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", padding:"0 14px", gap:10 }}>
-                      <div style={{ textAlign:"center", paddingBottom:8 }}>
-                        <div style={{ fontSize:44, marginBottom:8 }}>👴🏼</div>
-                        <div style={{ fontSize:16, fontWeight:700, color:"#fff", marginBottom:4 }}>Holger</div>
-                        <div style={{ fontSize:12, color:"#666", lineHeight:1.5 }}>Hej! Jeg er Holger, din personlige økonom.<br/>Hvad kan jeg hjælpe dig med?</div>
-                      </div>
-                      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                        {quickPrompts.map(p => (
-                          <button key={p} style={{ background:"rgba(224,64,251,0.15)", border:"1px solid rgba(224,64,251,0.4)", borderRadius:14, padding:"13px 16px", color:"#fff", fontSize:13, fontWeight:500, cursor:"pointer", textAlign:"left", width:"100%" }} onClick={() => sendAiMessage(p)}>{p}</button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ flex:1, overflowY:"auto", minHeight:0, display:"flex", flexDirection:"column", gap:10, padding:"12px 14px", scrollbarWidth:"none", msOverflowStyle:"none" }}>
-                      {aiMessages.map((m, i) => (
-                        <div key={i} style={{ display:"flex", justifyContent: m.role==="user" ? "flex-end" : "flex-start" }}>
-                          <div style={m.role==="user" ? { background:"linear-gradient(135deg,#6a0dad,#e040fb)", color:"#fff", borderRadius:"18px 18px 4px 18px", padding:"10px 14px", fontSize:13, lineHeight:1.5, maxWidth:"78%", whiteSpace:"pre-wrap" } : { background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", color: isDark ? "#e8e8e8" : "#222", borderRadius:"18px 18px 18px 4px", padding:"10px 14px", fontSize:13, lineHeight:1.6, maxWidth:"84%", whiteSpace:"pre-wrap" }}>{m.role==="assistant" ? renderMessage(m.content) : m.content}</div>
-                        </div>
-                      ))}
-                      {aiLoading && (
-                        <div style={{ display:"flex", justifyContent:"flex-start" }}>
-                          <div style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.1)", color:"#888", borderRadius:"18px 18px 18px 4px", padding:"10px 14px", fontSize:13 }}>✨ Tænker...</div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div style={{ display:"flex", gap:8, padding:"10px 14px 14px", flexShrink:0, borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", background: isDark ? "#0f0f13" : "#ffffff" }}>
-                    <input
-                      style={{ flex:1, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(0,0,0,0.15)", borderRadius:22, padding:"11px 16px", color: isDark ? "#fff" : "#111", fontSize:13, outline:"none" }}
-                      placeholder="Stil et spørgsmål..."
-                      value={aiInput}
-                      onChange={e => setAiInput(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && sendAiMessage(aiInput)}
-                    />
-                    <button
-                      style={{ width:40, height:40, borderRadius:"50%", border:"none", cursor:"pointer", background:"linear-gradient(135deg,#8b2fc9,#e040fb)", color:"#fff", fontSize:20, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, opacity: aiLoading || !aiInput.trim() ? 0.4 : 1 }}
-                      onClick={() => sendAiMessage(aiInput)}
-                      disabled={aiLoading || !aiInput.trim()}>
-                      ↑
-                    </button>
-                  </div>
+            {view === "categories" && (
+              <div style={S.section}>
+                <span style={S.sectionTitle}>Alle kategorier</span>
+                {byCategory.map(c => <CatRow key={c.category} c={c} max={maxCatTotal} onClick={() => { setSelectedCategory(c.category); setView("category"); }} S={S} />)}
+              </div>
+            )}
+
+            {view === "month" && selMonth && (() => {
+              const cats = {};
+              selMonth.items.forEach(t => {
+                if (!cats[t.category]) cats[t.category] = { ...t, total:0, count:0 };
+                cats[t.category].total += Math.abs(t.amount);
+                cats[t.category].count++;
+              });
+              const sorted = Object.values(cats).sort((a,b) => b.total-a.total);
+              const max = sorted[0]?.total || 1;
+              return <>
+                <div style={S.detailHero}>
+                  <span style={S.detailTotal}>-{fmt(selMonth.total)}</span>
+                  <span style={S.detailSub}>{selMonth.items.length} udgifter denne måned</span>
                 </div>
-              );
+                <div style={S.section}>
+                  <span style={S.sectionTitle}>Fordeling</span>
+                  {sorted.map(c => <CatRow key={c.category} c={c} max={max} count={c.count} onClick={() => { setSelectedMonthCategory(c.category); setView("month-category"); }} S={S} />)}
+                </div>
+                <div style={S.section}>
+                  <span style={S.sectionTitle}>Alle transaktioner</span>
+                  {[...selMonth.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
+                </div>
+              </>;
             })()}
 
-            <Nav view={view} setView={setView} isDark={isDark} S={S} />
+            {view === "category" && selCat && (() => {
+              const mmap = {};
+              selCat.items.forEach(t => {
+                if (!t.date) return;
+                const k = t.date.getFullYear() + "-" + String(t.date.getMonth()).padStart(2,"0");
+                if (!mmap[k]) mmap[k] = { k, year:t.date.getFullYear(), month:t.date.getMonth(), total:0 };
+                mmap[k].total += Math.abs(t.amount);
+              });
+              const months = Object.values(mmap).sort((a,b) => b.k.localeCompare(a.k));
+              const maxM = months[0]?.total || 1;
+              return <>
+                <div style={S.detailHero}>
+                  <span style={{ fontSize:36 }}>{selCat.icon}</span>
+                  <span style={S.detailTotal}>-{fmt(selCat.total)}</span>
+                  <span style={S.detailSub}>{selCat.items.length} transaktioner</span>
+                </div>
+                {months.length > 0 && (
+                  <div style={S.section}>
+                    <span style={S.sectionTitle}>Per måned</span>
+                    {months.map(m => (
+                      <div key={m.k} style={{ ...S.row, cursor:"pointer" }} onClick={() => { setSelectedCategoryMonth(m.k); setView("category-month"); }}>
+                        <div style={{ minWidth:80 }}><div style={S.rowTitle}>{MDA[m.month]} {m.year}</div></div>
+                        <div style={S.barTrack}><div style={{ ...S.barFill, width:((m.total/maxM)*100) + "%", background:selCat.color }} /></div>
+                        <span style={S.rowAmt}>-{fmt(m.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={S.section}>
+                  <span style={S.sectionTitle}>Alle transaktioner</span>
+                  {[...selCat.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
+                </div>
+              </>;
+            })()}
+
+            {view === "month-category" && selMonth && (() => {
+              const items = selMonth.items.filter(t => t.category === selectedMonthCategory);
+              const cat = byCategory.find(c => c.category === selectedMonthCategory);
+              const total = items.reduce((s,t) => s + Math.abs(t.amount), 0);
+              return <>
+                <div style={S.detailHero}>
+                  {cat && <span style={{ fontSize:32 }}>{cat.icon}</span>}
+                  <span style={S.detailTotal}>-{fmt(total)}</span>
+                  <span style={S.detailSub}>{items.length} transaktioner · {MDA[selMonth.month]} {selMonth.year}</span>
+                </div>
+                <div style={S.section}>
+                  <span style={S.sectionTitle}>Transaktioner</span>
+                  {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
+                </div>
+              </>;
+            })()}
+
+            {view === "category-month" && selCat && (() => {
+              const mKey = selectedCategoryMonth;
+              const mData = byMonth.find(m => m.key === mKey);
+              const items = selCat.items.filter(t => {
+                if (!t.date) return false;
+                return (t.date.getFullYear() + "-" + String(t.date.getMonth()).padStart(2,"0")) === mKey;
+              });
+              const total = items.reduce((s,t) => s + Math.abs(t.amount), 0);
+              return <>
+                <div style={S.detailHero}>
+                  <span style={{ fontSize:32 }}>{selCat.icon}</span>
+                  <span style={S.detailTotal}>-{fmt(total)}</span>
+                  <span style={S.detailSub}>{items.length} transaktioner · {mData ? MDA[mData.month] + " " + mData.year : ""}</span>
+                </div>
+                <div style={S.section}>
+                  <span style={S.sectionTitle}>Transaktioner</span>
+                  {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
+                </div>
+              </>;
+            })()}
+
           </div>
-        )}
+
+          {/* HOLGER AI */}
+          {view === "ai" && !privacyAccepted && (
+            <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:"24px 20px", gap:16 }}>
+              <div style={{ fontSize:48 }}>🔒</div>
+              <div style={{ fontSize:18, fontWeight:700, color: isDark ? "#fff" : "#111", textAlign:"center" }}>Inden du starter</div>
+              <div style={{ fontSize:13, color: isDark ? "#aaa" : "#555", lineHeight:1.7, textAlign:"center", maxWidth:300 }}>
+                Når du spørger Holger, sendes et sammendrag af dine transaktioner til Anthropics AI-service.<br/><br/>
+                <strong style={{ color: isDark ? "#ddd" : "#333" }}>Dine data:</strong><br/>
+                ✓ Læses kun lokalt i din browser<br/>
+                ✓ Uploades aldrig til nogen server<br/>
+                ✓ Sendes kun til Anthropic når du spørger Holger<br/>
+                ✓ Bruges ikke til at træne AI-modeller
+              </div>
+              <button onClick={() => { setPrivacyAccepted(true); localStorage.setItem("okonom-privacy","true"); }}
+                style={{ background:"linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:14, padding:"14px 32px", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                Jeg forstår og accepterer
+              </button>
+              <button onClick={() => setView("overview")} style={{ background:"none", border:"none", color: isDark ? "#666" : "#999", fontSize:13, cursor:"pointer" }}>Gå tilbage</button>
+            </div>
+          )}
+
+          {view === "ai" && privacyAccepted && (
+            <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden" }}>
+              {aiMessages.length === 0 ? (
+                <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", padding:"0 14px", gap:10 }}>
+                  <div style={{ textAlign:"center", paddingBottom:8 }}>
+                    <div style={{ fontSize:44, marginBottom:8 }}>👴🏼</div>
+                    <div style={{ fontSize:16, fontWeight:700, color: isDark ? "#fff" : "#111", marginBottom:4 }}>Holger</div>
+                    <div style={{ fontSize:12, color: isDark ? "#666" : "#999", lineHeight:1.5 }}>Hej! Jeg er Holger, din personlige økonom.<br/>Hvad kan jeg hjælpe dig med?</div>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                    {["Hvad bruger jeg flest penge på?","Opsummer mine abonnementer","Hvor kan jeg spare penge?","Lav en opsparingsplan for mig"].map(p => (
+                      <button key={p} onClick={() => sendAiMessage(p)}
+                        style={{ background:"rgba(224,64,251,0.12)", border:"1px solid rgba(224,64,251,0.35)", borderRadius:14, padding:"13px 16px", color: isDark ? "#fff" : "#333", fontSize:13, fontWeight:500, cursor:"pointer", textAlign:"left", width:"100%" }}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ flex:1, overflowY:"auto", minHeight:0, display:"flex", flexDirection:"column", gap:10, padding:"12px 14px", scrollbarWidth:"none" }}>
+                  {aiMessages.map((m, i) => (
+                    <div key={i} style={{ display:"flex", justifyContent: m.role==="user" ? "flex-end" : "flex-start" }}>
+                      <div style={m.role==="user"
+                        ? { background:"linear-gradient(135deg,#6a0dad,#e040fb)", color:"#fff", borderRadius:"18px 18px 4px 18px", padding:"10px 14px", fontSize:13, lineHeight:1.5, maxWidth:"78%", whiteSpace:"pre-wrap" }
+                        : { background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", color: isDark ? "#e8e8e8" : "#222", borderRadius:"18px 18px 18px 4px", padding:"10px 14px", fontSize:13, lineHeight:1.6, maxWidth:"84%", whiteSpace:"pre-wrap" }}>
+                        {m.role==="assistant" ? renderMessage(m.content) : m.content}
+                      </div>
+                    </div>
+                  ))}
+                  {aiLoading && (
+                    <div style={{ display:"flex", justifyContent:"flex-start" }}>
+                      <div style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", color:"#888", borderRadius:"18px 18px 18px 4px", padding:"10px 14px", fontSize:13 }}>👴🏼 Tænker...</div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+              )}
+              <div style={{ display:"flex", gap:8, padding:"10px 14px 14px", flexShrink:0, borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", background: isDark ? "#0f0f13" : "#ffffff" }}>
+                <input
+                  style={{ flex:1, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(0,0,0,0.15)", borderRadius:22, padding:"11px 16px", color: isDark ? "#fff" : "#111", fontSize:13, outline:"none" }}
+                  placeholder="Spørg Holger..."
+                  value={aiInput}
+                  onChange={e => setAiInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && sendAiMessage(aiInput)}
+                />
+                <button
+                  style={{ width:40, height:40, borderRadius:"50%", border:"none", cursor:"pointer", background:"linear-gradient(135deg,#8b2fc9,#e040fb)", color:"#fff", fontSize:20, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, opacity: aiLoading || !aiInput.trim() ? 0.4 : 1 }}
+                  onClick={() => sendAiMessage(aiInput)} disabled={aiLoading || !aiInput.trim()}>↑</button>
+              </div>
+            </div>
+          )}
+
+          <Nav view={view} setView={setView} isDark={isDark} S={S} />
+        </div>
       </div>
     </div>
   );
@@ -666,119 +826,45 @@ const makeStyles = (isDark) => ({
   shell: {
     minHeight:"100dvh", display:"flex", alignItems:"center", justifyContent:"center",
     background: isDark ? "radial-gradient(ellipse at 30% 20%, #1a0a2e 0%, #0d0d0d 60%)" : "#f0f0f5",
-    fontFamily:"'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
-    padding:0,
+    fontFamily:"'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", padding:0,
   },
   phone: {
-    width:"100%", maxWidth:430, height:"100dvh", 
-    background: isDark ? "#0f0f13" : "#ffffff", borderRadius:0,
-    overflow:"hidden",
+    width:"100%", maxWidth:430, height:"100dvh", background: isDark ? "#0f0f13" : "#ffffff",
+    borderRadius:0, overflow:"hidden",
     boxShadow: isDark ? "0 40px 80px rgba(0,0,0,0.8)" : "0 4px 24px rgba(0,0,0,0.12)",
     display:"flex", flexDirection:"column",
   },
-  appLayout: {
-    flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0,
-  },
+  appLayout: { flex:1, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0 },
   header: {
-    padding:"12px 18px 10px", display:"flex", alignItems:"center", gap:10,
+    padding:"10px 18px", display:"flex", alignItems:"center", gap:10,
     flexShrink:0, borderBottom: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.08)",
   },
-  headerTitle: { margin:0, fontSize:20, fontWeight:700, color: isDark ? "#fff" : "#111" },
-  headerSub: { margin:0, fontSize:11, color: isDark ? "#666" : "#999", marginTop:1 },
-  backBtn: {
-    background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:12,
-    color: isDark ? "#fff" : "#333", fontSize:18, width:36, height:36, cursor:"pointer",
-    display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-  },
-  resetBtn: {
-    background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:12,
-    color: isDark ? "#aaa" : "#666", fontSize:16, width:36, height:36, cursor:"pointer", flexShrink:0,
-  },
-  themeBtn: {
-    background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:12,
-    color: isDark ? "#aaa" : "#666", fontSize:16, width:36, height:36, cursor:"pointer", flexShrink:0,
-    display:"flex", alignItems:"center", justifyContent:"center",
-  },
-  scroll: {
-    flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden",
-    padding:"12px 14px", display:"flex", flexDirection:"column", gap:10,
-    scrollbarWidth:"none", msOverflowStyle:"none",
-  },
-  nav: {
-    flexShrink:0, display:"flex", justifyContent:"space-around",
-    padding:"10px 0 env(safe-area-inset-bottom, 16px)",
-    background: isDark ? "#0f0f13" : "#ffffff",
-    borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)",
-  },
-  navBtn: {
-    background:"none", border:"none", cursor:"pointer",
-    display:"flex", flexDirection:"column", alignItems:"center", gap:3, padding:"4px 16px",
-  },
-  uploadScreen: {
-    flex:1, display:"flex", flexDirection:"column",
-    alignItems:"center", justifyContent:"center", padding:24, gap:24,
-  },
-  logoCircle: {
-    fontSize:48, background:"linear-gradient(135deg,#1a0a2e,#4a0080)", borderRadius:24,
-    width:84, height:84, display:"flex", alignItems:"center", justifyContent:"center",
-    boxShadow:"0 8px 32px rgba(139,47,201,0.5)",
-  },
-  dropZone: {
-    width:"100%", border:"2px dashed rgba(139,47,201,0.5)", borderRadius:20,
-    padding:"28px 20px", display:"flex", flexDirection:"column",
-    alignItems:"center", gap:8, cursor:"pointer",
-    background: isDark ? "rgba(139,47,201,0.05)" : "rgba(139,47,201,0.04)",
-  },
-  dropActive: { background:"rgba(139,47,201,0.15)", borderColor:"#e040fb" },
-  bankTag: {
-    background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
-    border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)",
-    borderRadius:20, padding:"4px 12px", fontSize:11,
-    color: isDark ? "#aaa" : "#666",
-  },
-  heroCard: {
-    background: isDark ? "linear-gradient(135deg,#1a0a2e,#2d1060)" : "linear-gradient(135deg,#f3e8ff,#ede9fe)",
-    border: isDark ? "1px solid rgba(224,64,251,0.2)" : "1px solid rgba(139,47,201,0.2)",
-    borderRadius:20, padding:"20px 20px 16px", display:"flex", flexDirection:"column",
-    alignItems:"center", gap:6, flexShrink:0,
-  },
+  headerTitle: { margin:0, fontSize:18, fontWeight:700, color: isDark ? "#fff" : "#111" },
+  backBtn: { background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:12, color: isDark ? "#fff" : "#333", fontSize:18, width:36, height:36, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
+  resetBtn: { background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:12, color: isDark ? "#aaa" : "#666", fontSize:16, width:36, height:36, cursor:"pointer", flexShrink:0 },
+  themeBtn: { background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:12, color: isDark ? "#aaa" : "#666", fontSize:16, width:36, height:36, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" },
+  scroll: { flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", padding:"12px 14px", flexDirection:"column", gap:10, scrollbarWidth:"none" },
+  nav: { flexShrink:0, display:"flex", justifyContent:"space-around", padding:"10px 0 env(safe-area-inset-bottom, 16px)", background: isDark ? "#0f0f13" : "#ffffff", borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)" },
+  navBtn: { background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:3, padding:"4px 16px" },
+  heroCard: { background: isDark ? "linear-gradient(135deg,#1a0a2e,#2d1060)" : "linear-gradient(135deg,#f3e8ff,#ede9fe)", border: isDark ? "1px solid rgba(224,64,251,0.2)" : "1px solid rgba(139,47,201,0.2)", borderRadius:20, padding:"20px 20px 16px", display:"flex", flexDirection:"column", alignItems:"center", gap:6, flexShrink:0 },
   heroLabel: { fontSize:11, color: isDark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", fontWeight:500, letterSpacing:1.2, textTransform:"uppercase" },
   heroAmount: { fontSize:36, fontWeight:800, letterSpacing:-1.5 },
   heroRow: { display:"flex", gap:16, alignItems:"center" },
   heroSub: { fontSize:11, color: isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.4)" },
   statRow: { display:"flex", gap:8, flexShrink:0 },
-  statBox: {
-    flex:1, background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
-    border: isDark ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.07)",
-    borderRadius:14, padding:"12px 8px", display:"flex", flexDirection:"column",
-    alignItems:"center", gap:2,
-  },
+  statBox: { flex:1, background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", border: isDark ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.07)", borderRadius:14, padding:"12px 8px", display:"flex", flexDirection:"column", alignItems:"center", gap:2 },
   statNum: { fontSize:20, fontWeight:700, color:"#9333ea" },
   statLabel: { fontSize:9, color: isDark ? "#666" : "#999" },
-  section: {
-    background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
-    border: isDark ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.08)",
-    borderRadius:16, overflow:"hidden", flexShrink:0,
-  },
+  section: { background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", border: isDark ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.08)", borderRadius:16, overflow:"hidden", flexShrink:0 },
   sectionTitle: { fontSize:12, fontWeight:600, color: isDark ? "#888" : "#999", padding:"12px 14px 4px", display:"block" },
-  row: {
-    display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
-    borderTop: isDark ? "1px solid rgba(255,255,255,0.04)" : "1px solid rgba(0,0,0,0.05)",
-  },
+  row: { display:"flex", alignItems:"center", gap:10, padding:"10px 14px", borderTop: isDark ? "1px solid rgba(255,255,255,0.04)" : "1px solid rgba(0,0,0,0.05)" },
   rowTitle: { fontSize:13, fontWeight:600, color: isDark ? "#ddd" : "#222" },
   rowSub: { fontSize:10, color: isDark ? "#666" : "#999", marginTop:1 },
   rowAmt: { fontSize:12, color:"#ef4444", fontWeight:700, flexShrink:0, minWidth:65, textAlign:"right" },
   barTrack: { flex:1, height:5, background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)", borderRadius:3, overflow:"hidden", margin:"4px 0" },
   barFill: { height:"100%", borderRadius:3 },
-  catIcon: {
-    width:36, height:36, borderRadius:10,
-    display:"flex", alignItems:"center", justifyContent:"center",
-    fontSize:18, flexShrink:0,
-  },
-  detailHero: {
-    padding:"12px 0 4px", display:"flex", flexDirection:"column",
-    alignItems:"center", gap:4, flexShrink:0,
-  },
+  catIcon: { width:36, height:36, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 },
+  detailHero: { padding:"12px 0 4px", display:"flex", flexDirection:"column", alignItems:"center", gap:4, flexShrink:0 },
   detailTotal: { fontSize:32, fontWeight:800, color:"#ef4444", letterSpacing:-1 },
   detailSub: { fontSize:12, color: isDark ? "#666" : "#999" },
 });
