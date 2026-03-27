@@ -303,6 +303,9 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(() => localStorage.getItem("okonom-privacy") === "true");
   const [isDark, setIsDark] = useState(() => (localStorage.getItem("okonom-theme") || "dark") === "dark");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
+  const [subscriptionPopup, setSubscriptionPopup] = useState(false);
   const chatEndRef = useRef(null);
 
   const toggleTheme = () => {
@@ -575,8 +578,8 @@ SAMTALEREGLER:
               <span>{tab.icon}</span> {tab.label}
             </button>
           ))}
-          <button onClick={() => { setUploads({}); setAccounts([]); setStep("setup"); }}
-            style={{ flexShrink:0, marginLeft:"auto", background:"none", border:"none", color: isDark ? "#555" : "#bbb", fontSize:18, cursor:"pointer" }}>↩</button>
+          <button onClick={() => setSettingsOpen(true)}
+            style={{ flexShrink:0, marginLeft:"auto", background:"none", border:"none", color: isDark ? "#888" : "#999", fontSize:20, cursor:"pointer", padding:"0 4px" }}>⚙️</button>
         </div>
 
         <div style={S.appLayout}>
@@ -586,7 +589,7 @@ SAMTALEREGLER:
             <div style={{ flex:1, minWidth:0 }}>
               <h2 style={S.headerTitle}>{titles[view]}</h2>
             </div>
-            <button style={S.themeBtn} onClick={toggleTheme}>{isDark ? "☀️" : "🌙"}</button>
+
             {view === "ai" && aiMessages.length > 0 && (
               <button style={S.resetBtn} onClick={() => setAiMessages([])}>🗑️</button>
             )}
@@ -817,6 +820,115 @@ SAMTALEREGLER:
 
           <Nav view={view} setView={setView} isDark={isDark} S={S} />
         </div>
+
+        {/* SETTINGS MODAL */}
+        {settingsOpen && (
+          <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", zIndex:100 }} onClick={() => setSettingsOpen(false)}>
+            <div style={{ width:"100%", background: isDark ? "#1a1a2e" : "#fff", borderRadius:"24px 24px 0 0", padding:"24px 20px 40px", display:"flex", flexDirection:"column", gap:12 }} onClick={e => e.stopPropagation()}>
+              <div style={{ width:36, height:4, background:"rgba(128,128,128,0.3)", borderRadius:2, margin:"0 auto 8px" }} />
+              <h3 style={{ margin:0, fontSize:18, fontWeight:700, color: isDark ? "#fff" : "#111" }}>Indstillinger</h3>
+
+              <button onClick={() => { setSettingsOpen(false); setStep("upload"); }}
+                style={{ background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)", borderRadius:14, padding:"14px 16px", color: isDark ? "#ddd" : "#333", fontSize:14, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:12 }}>
+                <span style={{ fontSize:22 }}>📁</span>
+                <div>
+                  <div style={{ fontWeight:600 }}>Upload flere konti</div>
+                  <div style={{ fontSize:11, color: isDark ? "#888" : "#999", marginTop:2 }}>Tilføj eller skift kontoudtog</div>
+                </div>
+              </button>
+
+              <button onClick={() => { setSettingsOpen(false); setSubscriptionOpen(true); }}
+                style={{ background:"linear-gradient(135deg,#1a0a2e,#2d1060)", border:"1px solid rgba(224,64,251,0.3)", borderRadius:14, padding:"14px 16px", color:"#fff", fontSize:14, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:12 }}>
+                <span style={{ fontSize:22 }}>⭐</span>
+                <div>
+                  <div style={{ fontWeight:600 }}>Køb abonnement</div>
+                  <div style={{ fontSize:11, color:"#c084fc", marginTop:2 }}>Kun 29 kr. pr. måned</div>
+                </div>
+              </button>
+
+              <button onClick={() => { setSettingsOpen(false); toggleTheme(); }}
+                style={{ background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.08)", borderRadius:14, padding:"14px 16px", color: isDark ? "#ddd" : "#333", fontSize:14, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:12 }}>
+                <span style={{ fontSize:22 }}>{isDark ? "☀️" : "🌙"}</span>
+                <div>
+                  <div style={{ fontWeight:600 }}>{isDark ? "Skift til lys tilstand" : "Skift til mørk tilstand"}</div>
+                </div>
+              </button>
+
+              <button onClick={() => setSettingsOpen(false)}
+                style={{ background:"none", border:"none", color: isDark ? "#666" : "#999", fontSize:14, cursor:"pointer", marginTop:4 }}>
+                Luk
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* SUBSCRIPTION PAGE */}
+        {subscriptionOpen && (
+          <div style={{ position:"absolute", inset:0, background: isDark ? "#0f0f13" : "#fff", display:"flex", flexDirection:"column", zIndex:100, overflowY:"auto" }}>
+            <div style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:10, flexShrink:0, borderBottom: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.08)" }}>
+              <button onClick={() => setSubscriptionOpen(false)} style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:10, width:32, height:32, cursor:"pointer", color: isDark ? "#fff" : "#333", fontSize:16 }}>←</button>
+              <h2 style={{ margin:0, fontSize:18, fontWeight:700, color: isDark ? "#fff" : "#111" }}>Økonom Premium</h2>
+            </div>
+
+            <div style={{ flex:1, padding:"28px 20px 40px", display:"flex", flexDirection:"column", gap:20 }}>
+              {/* Hero */}
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:64, marginBottom:12 }}>👴🏼</div>
+                <h2 style={{ margin:0, fontSize:26, fontWeight:800, color: isDark ? "#fff" : "#111", letterSpacing:-0.5 }}>Få fuld adgang til Holger</h2>
+                <p style={{ margin:"8px 0 0", fontSize:14, color: isDark ? "#999" : "#666" }}>Din personlige privatøkonomiske coach — altid klar</p>
+              </div>
+
+              {/* Price */}
+              <div style={{ background:"linear-gradient(135deg,#1a0a2e,#2d1060)", border:"1px solid rgba(224,64,251,0.3)", borderRadius:20, padding:"20px", textAlign:"center" }}>
+                <div style={{ fontSize:13, color:"#c084fc", fontWeight:600, marginBottom:4 }}>MÅNEDLIG PRIS</div>
+                <div style={{ fontSize:48, fontWeight:800, color:"#fff", letterSpacing:-1 }}>29 kr.</div>
+                <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)", marginTop:2 }}>pr. måned · ingen binding</div>
+              </div>
+
+              {/* Features */}
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {[
+                  ["🤖", "Ubegrænset adgang til Holger", "Stil så mange spørgsmål du vil"],
+                  ["📊", "Op til 5 konti på én gang", "Analyser hele din økonomi samlet"],
+                  ["💡", "Personlige besparelsesforslag", "Konkrete råd baseret på dit forbrug"],
+                  ["📈", "Opsparingsplaner", "Skræddersyet til dine mål"],
+                  ["🔒", "Dine data er altid private", "Ingen data deles eller gemmes"],
+                ].map(([icon, title, sub]) => (
+                  <div key={title} style={{ display:"flex", gap:12, alignItems:"flex-start", background: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", border: isDark ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(0,0,0,0.06)", borderRadius:14, padding:"12px 14px" }}>
+                    <span style={{ fontSize:22, flexShrink:0 }}>{icon}</span>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:600, color: isDark ? "#fff" : "#111" }}>{title}</div>
+                      <div style={{ fontSize:12, color: isDark ? "#888" : "#999", marginTop:2 }}>{sub}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA */}
+              <button onClick={() => setSubscriptionPopup(true)}
+                style={{ background:"linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:16, padding:"18px", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", boxShadow:"0 8px 24px rgba(139,47,201,0.4)" }}>
+                Tilmeld dig nu — 29 kr./md.
+              </button>
+              <p style={{ margin:"-10px 0 0", fontSize:11, color: isDark ? "#555" : "#bbb", textAlign:"center" }}>Ingen binding · Opsig når som helst</p>
+            </div>
+          </div>
+        )}
+
+        {/* COMING SOON POPUP */}
+        {subscriptionPopup && (
+          <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.7)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:24 }} onClick={() => setSubscriptionPopup(false)}>
+            <div style={{ background: isDark ? "#1a1a2e" : "#fff", borderRadius:24, padding:"32px 24px", textAlign:"center", maxWidth:300, width:"100%" }} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize:52, marginBottom:12 }}>🚀</div>
+              <h3 style={{ margin:"0 0 8px", fontSize:20, fontWeight:800, color: isDark ? "#fff" : "#111" }}>Abonnement kommer snart!</h3>
+              <p style={{ margin:"0 0 20px", fontSize:13, color: isDark ? "#999" : "#666", lineHeight:1.6 }}>Vi arbejder på at gøre Holger endnu bedre. Du hører fra os når det er klar!</p>
+              <button onClick={() => setSubscriptionPopup(false)}
+                style={{ background:"linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:12, padding:"12px 28px", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                Forstået!
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
