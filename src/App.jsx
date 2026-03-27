@@ -306,7 +306,7 @@ ABONNEMENTER:
 ${subLines}
 
 ALLE TRANSAKTIONER MED DATO OG BELØB (brug disse til at svare præcist — du behøver ALDRIG bede brugeren om at tjekke selv):
-${transactionsByCat}\`;
+${transactionsByCat}`;
 
     try {
       const response = await fetch("/api/chat", {
