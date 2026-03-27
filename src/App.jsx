@@ -293,20 +293,20 @@ Brug ALDRIG markdown-formatering som ** eller * eller # — skriv i klart og enk
 Hold svar korte, konkrete og handlingsorienterede. Svar altid på dansk.
 
 Brugerens økonomidata:
-Periode: \${ctx.periode}
-Indkomst: \${ctx.total_indkomst} kr | Udgifter: \${ctx.total_udgifter} kr | Netto: \${ctx.nettoresultat} kr
+Periode: ${ctx.periode}
+Indkomst: ${ctx.total_indkomst} kr | Udgifter: ${ctx.total_udgifter} kr | Netto: ${ctx.nettoresultat} kr
 
 KATEGORIER:
-\${catLines}
+${catLines}
 
 MÅNEDER:
-\${monthLines}
+${monthLines}
 
 ABONNEMENTER:
-\${subLines}
+${subLines}
 
 ALLE TRANSAKTIONER MED DATO OG BELØB (brug disse til at svare præcist — du behøver ALDRIG bede brugeren om at tjekke selv):
-\${transactionsByCat}\`;
+${transactionsByCat}\`;
 
     try {
       const response = await fetch("/api/chat", {
@@ -344,11 +344,11 @@ ALLE TRANSAKTIONER MED DATO OG BELØB (brug disse til at svare præcist — du b
   const selCatMonth = selectedCategoryMonth;
 
   const titles = { overview:"Overblik", months:"Måneder", categories:"Kategorier",
-    month: selMonth ? `${MDA[selMonth.month]} ${selMonth.year}` : "",
+    month: selMonth ? (MDA[selMonth.month] + " " + selMonth.year) : "",
     category: selectedCategory || "",
     "month-category": selMonthCat || "",
     "ai": "Holger",
-    "category-month": selCatMonth ? `${MDA[byMonth.find(m=>m.key===selCatMonth)?.month ?? 0]} ${byMonth.find(m=>m.key===selCatMonth)?.year ?? ""}` : "",
+    "category-month": selCatMonth ? (MDA[byMonth.find(m=>m.key===selCatMonth)?.month ?? 0] + " " + (byMonth.find(m=>m.key===selCatMonth)?.year ?? "")) : "",
   };
 
   const S = makeStyles(isDark);
