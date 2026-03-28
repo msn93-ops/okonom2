@@ -757,7 +757,9 @@ SAMTALEREGLER:
               return <>
                 <div style={S.detailHero}>
                   <span style={{ fontSize:36 }}>{selCat.icon}</span>
-                  <span style={S.detailTotal}>-{fmt(selCat.total)}</span>
+                  <span style={{ ...S.detailTotal, color: selCat.category === "Lønindtægt" ? "#22c55e" : "#ef4444" }}>
+                    {selCat.category === "Lønindtægt" ? "+" : "-"}{fmt(selCat.total)}
+                  </span>
                   <span style={S.detailSub}>{selCat.items.length} transaktioner</span>
                 </div>
                 {months.length > 0 && (
@@ -767,7 +769,9 @@ SAMTALEREGLER:
                       <div key={m.k} style={{ ...S.row, cursor:"pointer" }} onClick={() => { setSelectedCategoryMonth(m.k); setView("category-month"); }}>
                         <div style={{ minWidth:80 }}><div style={S.rowTitle}>{MDA[m.month]} {m.year}</div></div>
                         <div style={S.barTrack}><div style={{ ...S.barFill, width:((m.total/maxM)*100) + "%", background:selCat.color }} /></div>
-                        <span style={S.rowAmt}>-{fmt(m.total)}</span>
+                        <span style={{ ...S.rowAmt, color: selCat.category === "Lønindtægt" ? "#22c55e" : "#ef4444" }}>
+                          {selCat.category === "Lønindtægt" ? "+" : "-"}{fmt(m.total)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -807,7 +811,9 @@ SAMTALEREGLER:
               return <>
                 <div style={S.detailHero}>
                   <span style={{ fontSize:32 }}>{selCat.icon}</span>
-                  <span style={S.detailTotal}>-{fmt(total)}</span>
+                  <span style={{ ...S.detailTotal, color: selCat.category === "Lønindtægt" ? "#22c55e" : "#ef4444" }}>
+                    {selCat.category === "Lønindtægt" ? "+" : "-"}{fmt(total)}
+                  </span>
                   <span style={S.detailSub}>{items.length} transaktioner · {mData ? MDA[mData.month] + " " + mData.year : ""}</span>
                 </div>
                 <div style={S.section}>
