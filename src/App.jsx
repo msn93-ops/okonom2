@@ -84,14 +84,27 @@ function renderMessage(text) {
 
 // ── Shared row components ─────────────────────────────────────────────────────
 function MonthRow({ m, max, onClick, S }) {
+  const net = (m.income || 0) - m.total;
   return (
-    <div style={{ ...S.row, cursor: onClick ? "pointer" : "default" }} onClick={onClick}>
-      <div style={{ minWidth: 80 }}>
-        <div style={S.rowTitle}>{MDA[m.month]} {m.year}</div>
-        <div style={S.rowSub}>{m.items.length} udgifter</div>
+    <div style={{ ...S.row, cursor: onClick ? "pointer" : "default", flexDirection:"column", alignItems:"stretch", gap:6 }} onClick={onClick}>
+      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+        <div style={{ minWidth: 80 }}>
+          <div style={S.rowTitle}>{MDA[m.month]} {m.year}</div>
+          <div style={S.rowSub}>{m.items.length} udgifter</div>
+        </div>
+        <div style={S.barTrack}><div style={{ ...S.barFill, width:((m.total/max)*100) + "%", background: "linear-gradient(90deg,#8b2fc9,#e040fb)" }} /></div>
+        <span style={S.rowAmt}>-{fmt(m.total)}</span>
       </div>
-      <div style={S.barTrack}><div style={{ ...S.barFill, width:((m.total/max)*100) + "%", background: "linear-gradient(90deg,#8b2fc9,#e040fb)" }} /></div>
-      <span style={S.rowAmt}>-{fmt(m.total)}</span>
+      {(m.income || 0) > 0 && (
+        <div style={{ display:"flex", justifyContent:"space-between", paddingLeft:90, paddingRight:0 }}>
+          <div style={{ display:"flex", gap:12 }}>
+            <span style={{ fontSize:10, color:"#22c55e" }}>↑ +{fmt(m.income)}</span>
+            <span style={{ fontSize:10, color: net >= 0 ? "#22c55e" : "#ef4444", fontWeight:600 }}>
+              Netto: {net >= 0 ? "+" : "-"}{fmt(Math.abs(net))}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
