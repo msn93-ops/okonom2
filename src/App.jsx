@@ -336,15 +336,22 @@ export default function App() {
 
   const byMonth = useMemo(() => {
     const map = {};
+    // Only expenses for byMonth totals
     expenses.forEach(t => {
       if (!t.date) return;
       const key = t.date.getFullYear() + "-" + String(t.date.getMonth()).padStart(2,"0");
-      if (!map[key]) map[key] = { key, year:t.date.getFullYear(), month:t.date.getMonth(), total:0, items:[] };
+      if (!map[key]) map[key] = { key, year:t.date.getFullYear(), month:t.date.getMonth(), total:0, items:[], income:0 };
       map[key].total += Math.abs(t.amount);
       map[key].items.push(t);
     });
+    // Add income per month
+    income.forEach(t => {
+      if (!t.date) return;
+      const key = t.date.getFullYear() + "-" + String(t.date.getMonth()).padStart(2,"0");
+      if (map[key]) map[key].income += t.amount;
+    });
     return Object.values(map).sort((a,b) => b.key.localeCompare(a.key));
-  }, [expenses]);
+  }, [expenses, income]);
 
   const byCategory = useMemo(() => {
     const map = {};
@@ -650,7 +657,8 @@ SAMTALEREGLER:
 
             {view === "month" && selMonth && (() => {
               const cats = {};
-              selMonth.items.forEach(t => {
+              // Only expense transactions for category breakdown
+              selMonth.items.filter(t => t.amount < 0).forEach(t => {
                 if (!cats[t.category]) cats[t.category] = { ...t, total:0, count:0 };
                 cats[t.category].total += Math.abs(t.amount);
                 cats[t.category].count++;
@@ -658,9 +666,26 @@ SAMTALEREGLER:
               const sorted = Object.values(cats).sort((a,b) => b.total-a.total);
               const max = sorted[0]?.total || 1;
               return <>
-                <div style={S.detailHero}>
-                  <span style={S.detailTotal}>-{fmt(selMonth.total)}</span>
-                  <span style={S.detailSub}>{selMonth.items.length} udgifter denne måned</span>
+                {/* Month income vs expenses summary */}
+                <div style={{ background: isDark ? "linear-gradient(135deg,#1a0a2e,#2d1060)" : "linear-gradient(135deg,#f3e8ff,#ede9fe)", border: isDark ? "1px solid rgba(224,64,251,0.2)" : "1px solid rgba(139,47,201,0.15)", borderRadius:18, padding:"16px 20px", flexShrink:0, display:"flex", flexDirection:"column", gap:12 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div style={{ textAlign:"center", flex:1 }}>
+                      <div style={{ fontSize:11, color: isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.4)", fontWeight:500, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Indkomst</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:"#22c55e", letterSpacing:-0.5 }}>+{fmt(selMonth.income || 0)}</div>
+                    </div>
+                    <div style={{ width:1, height:40, background: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)" }} />
+                    <div style={{ textAlign:"center", flex:1 }}>
+                      <div style={{ fontSize:11, color: isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.4)", fontWeight:500, letterSpacing:1, textTransform:"uppercase", marginBottom:4 }}>Udgifter</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:"#ef4444", letterSpacing:-0.5 }}>-{fmt(selMonth.total)}</div>
+                    </div>
+                  </div>
+                  {/* Net result bar */}
+                  <div style={{ borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", paddingTop:10, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <span style={{ fontSize:12, color: isDark ? "#aaa" : "#777" }}>Nettoresultat</span>
+                    <span style={{ fontSize:16, fontWeight:800, color: (selMonth.income||0) - selMonth.total >= 0 ? "#22c55e" : "#ef4444", letterSpacing:-0.3 }}>
+                      {(selMonth.income||0) - selMonth.total >= 0 ? "+" : "-"}{fmt(Math.abs((selMonth.income||0) - selMonth.total))}
+                    </span>
+                  </div>
                 </div>
                 <div style={S.section}>
                   <span style={S.sectionTitle}>Fordeling</span>
@@ -668,7 +693,7 @@ SAMTALEREGLER:
                 </div>
                 <div style={S.section}>
                   <span style={S.sectionTitle}>Alle transaktioner</span>
-                  {[...selMonth.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
+                  {[...selMonth.items].filter(t => t.amount < 0).sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
                 </div>
               </>;
             })()}
