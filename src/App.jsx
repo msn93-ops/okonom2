@@ -669,7 +669,7 @@ SAMTALEREGLER:
                   </div>
                 </div>
                 <div style={S.section}>
-                  <span style={S.sectionTitle}>🔥 Største udgifter</span>
+                  <span style={S.sectionTitle}>🔥 Største poster</span>
                   {byCategory.slice(0,3).map(c => <CatRow key={c.category} c={c} max={maxCatTotal} onClick={() => { setSelectedCategory(c.category); setView("category"); }} S={S} />)}
                 </div>
                 <div style={S.section}>
