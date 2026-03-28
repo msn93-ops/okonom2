@@ -313,9 +313,42 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedMonthCategory, setSelectedMonthCategory] = useState(null);
   const [selectedCategoryMonth, setSelectedCategoryMonth] = useState(null);
-  const [aiMessages, setAiMessages] = useState([]);
+  const [conversations, setConversations] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("okonom-conversations") || "[]"); } catch { return []; }
+  });
+  const [activeConvId, setActiveConvId] = useState(null); // null = conversation list
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+
+  // Save conversations to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("okonom-conversations", JSON.stringify(conversations));
+  }, [conversations]);
+
+  const activeConv = conversations.find(c => c.id === activeConvId);
+  const aiMessages = activeConv?.messages || [];
+
+  const createNewConversation = () => {
+    if (conversations.length >= 10) return;
+    const id = Date.now();
+    const newConv = { id, title: "Ny samtale", createdAt: new Date().toLocaleDateString("da-DK"), messages: [] };
+    setConversations(prev => [newConv, ...prev]);
+    setActiveConvId(id);
+  };
+
+  const deleteConversation = (id) => {
+    setConversations(prev => prev.filter(c => c.id !== id));
+    if (activeConvId === id) setActiveConvId(null);
+  };
+
+  const updateConvMessages = (id, messages) => {
+    setConversations(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      // Auto-title from first user message
+      const title = messages.find(m => m.role === "user")?.content?.slice(0, 40) || "Ny samtale";
+      return { ...c, messages, title };
+    }));
+  };
   const [privacyAccepted, setPrivacyAccepted] = useState(() => localStorage.getItem("okonom-privacy") === "true");
   const [isDark, setIsDark] = useState(() => (localStorage.getItem("okonom-theme") || "dark") === "dark");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -418,10 +451,10 @@ export default function App() {
   }, [uploads, accounts, byCategory, totalIncome, totalExpenses]);
 
   const sendAiMessage = useCallback(async (text) => {
-    if (!text.trim() || aiLoading) return;
+    if (!text.trim() || aiLoading || !activeConvId) return;
     const userMsg = { role: "user", content: text };
     const newMessages = [...aiMessages, userMsg];
-    setAiMessages(newMessages);
+    updateConvMessages(activeConvId, newMessages);
     setAiInput("");
     setAiLoading(true);
 
@@ -458,12 +491,12 @@ SAMTALEREGLER:
       try { data = JSON.parse(raw); } catch(e) { throw new Error("Parse fejl: " + raw.slice(0,100)); }
       if (data.error) throw new Error(data.error.message);
       const reply = data.content?.filter(b => b.type === "text").map(b => b.text).join("") || "Intet svar.";
-      setAiMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      updateConvMessages(activeConvId, [...newMessages, { role: "assistant", content: reply }]);
     } catch (err) {
-      setAiMessages(prev => [...prev, { role: "assistant", content: "Fejl: " + err.message }]);
+      updateConvMessages(activeConvId, [...newMessages, { role: "assistant", content: "Fejl: " + err.message }]);
     }
     setAiLoading(false);
-  }, [aiMessages, aiLoading, buildContext]);
+  }, [aiMessages, aiLoading, buildContext, activeConvId]);
 
   const goBack = () => {
     if (view === "month-category") setView("month");
@@ -613,8 +646,8 @@ SAMTALEREGLER:
               <h2 style={S.headerTitle}>{titles[view]}</h2>
             </div>
 
-            {view === "ai" && aiMessages.length > 0 && (
-              <button style={S.resetBtn} onClick={() => setAiMessages([])}>🗑️</button>
+            {view === "ai" && activeConvId && (
+              <button style={S.resetBtn} onClick={() => setActiveConvId(null)} title="Samtaler">💬</button>
             )}
           </div>
 
@@ -787,6 +820,7 @@ SAMTALEREGLER:
           </div>
 
           {/* HOLGER AI */}
+          {/* HOLGER AI */}
           {view === "ai" && !privacyAccepted && (
             <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:"24px 20px", gap:16 }}>
               <div style={{ fontSize:48 }}>🔒</div>
@@ -807,14 +841,61 @@ SAMTALEREGLER:
             </div>
           )}
 
-          {view === "ai" && privacyAccepted && (
+          {view === "ai" && privacyAccepted && !activeConvId && (
+            /* CONVERSATION LIST */
+            <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
+              <div style={{ flex:1, overflowY:"auto", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10, scrollbarWidth:"none" }}>
+                <div style={{ textAlign:"center", padding:"16px 0 8px" }}>
+                  <div style={{ fontSize:40, marginBottom:6 }}>👴🏼</div>
+                  <div style={{ fontSize:15, fontWeight:700, color: isDark ? "#fff" : "#111" }}>Holger</div>
+                  <div style={{ fontSize:12, color: isDark ? "#666" : "#999", marginTop:2 }}>Din privatøkonomiske coach</div>
+                </div>
+
+                {conversations.length < 10 && (
+                  <button onClick={createNewConversation}
+                    style={{ background:"linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:14, padding:"14px", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                    <span>✏️</span> Ny samtale
+                  </button>
+                )}
+
+                {conversations.length === 0 ? (
+                  <div style={{ textAlign:"center", padding:"24px 0", color: isDark ? "#555" : "#bbb", fontSize:13 }}>
+                    Ingen samtaler endnu.<br/>Start en ny samtale med Holger.
+                  </div>
+                ) : (
+                  <div style={S.section}>
+                    <span style={S.sectionTitle}>Tidligere samtaler</span>
+                    {conversations.map(conv => (
+                      <div key={conv.id} style={{ ...S.row, cursor:"pointer", justifyContent:"space-between" }}>
+                        <div style={{ flex:1, minWidth:0 }} onClick={() => setActiveConvId(conv.id)}>
+                          <div style={{ ...S.rowTitle, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{conv.title}</div>
+                          <div style={S.rowSub}>{conv.createdAt} · {conv.messages.length} beskeder</div>
+                        </div>
+                        <button onClick={() => deleteConversation(conv.id)}
+                          style={{ background:"none", border:"none", color:"#ef4444", fontSize:16, cursor:"pointer", padding:"0 4px", flexShrink:0 }}>🗑️</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {conversations.length >= 10 && (
+                  <div style={{ fontSize:12, color: isDark ? "#666" : "#999", textAlign:"center", padding:"8px 0" }}>
+                    Max 10 samtaler nået. Slet en samtale for at oprette ny.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {view === "ai" && privacyAccepted && activeConvId && (
+            /* ACTIVE CONVERSATION */
             <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden" }}>
               {aiMessages.length === 0 ? (
                 <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", padding:"0 14px", gap:10 }}>
                   <div style={{ textAlign:"center", paddingBottom:8 }}>
                     <div style={{ fontSize:44, marginBottom:8 }}>👴🏼</div>
                     <div style={{ fontSize:16, fontWeight:700, color: isDark ? "#fff" : "#111", marginBottom:4 }}>Holger</div>
-                    <div style={{ fontSize:12, color: isDark ? "#666" : "#999", lineHeight:1.5 }}>Hej! Jeg er Holger, din personlige økonom.<br/>Hvad kan jeg hjælpe dig med?</div>
+                    <div style={{ fontSize:12, color: isDark ? "#666" : "#999", lineHeight:1.5 }}>Hej! Hvad kan jeg hjælpe dig med?</div>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                     {["Hvad bruger jeg flest penge på?","Opsummer mine abonnementer","Hvor kan jeg spare penge?","Lav en opsparingsplan for mig"].map(p => (
@@ -859,7 +940,7 @@ SAMTALEREGLER:
             </div>
           )}
 
-          <Nav view={view} setView={setView} isDark={isDark} S={S} />
+                    <Nav view={view} setView={setView} isDark={isDark} S={S} />
         </div>
 
         {/* SETTINGS MODAL */}
