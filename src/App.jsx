@@ -18,7 +18,7 @@ const CATEGORY_RULES = [
   { keywords: ["apotek","læge","hospital","tandlæge","medicin","fitness","gym","træning"], category: "Sundhed & Fitness", icon: "💊", color: "#00BCD4" },
   { keywords: ["zalando","h&m","zara","tøj","sko","mode","fashion","matas","sephora"], category: "Tøj & Mode", icon: "👗", color: "#FF5722" },
   { keywords: ["amazon","ebay","coolshop","proshop","elgiganten","power","expert"], category: "Shopping & Elektronik", icon: "🛍️", color: "#607D8B" },
-  { keywords: ["løn","salary","indkomst","overførsel fra","betaling fra"], category: "Indkomst", icon: "💰", color: "#8BC34A" },
+  { keywords: ["løn","salary","indkomst","overførsel fra","betaling fra","lønoverførsel","udbetaling"], category: "Lønindtægt", icon: "💵", color: "#22c55e" },
   { keywords: ["hæveautomat","kontant","kontanthævning"], category: "Kontanter", icon: "💵", color: "#9E9E9E" },
   { keywords: ["overførsel til","overf. til","intern overførsel"], category: "Intern overførsel", icon: "🔄", color: "#607D8B" },
 ];
@@ -105,7 +105,9 @@ function CatRow({ c, max, onClick, count, S }) {
         <div style={S.barTrack}><div style={{ ...S.barFill, width:((c.total/max)*100) + "%", background: c.color }} /></div>
       </div>
       <div style={{ textAlign:"right", flexShrink:0 }}>
-        <div style={S.rowAmt}>{fmt(c.total)}</div>
+        <div style={{ ...S.rowAmt, color: c.category === "Lønindtægt" ? "#22c55e" : "#ef4444" }}>
+          {c.category === "Lønindtægt" ? "+" : "-"}{fmt(c.total)}
+        </div>
         <div style={S.rowSub}>{(count ?? c.items.length)} stk.</div>
       </div>
     </div>
@@ -346,13 +348,14 @@ export default function App() {
 
   const byCategory = useMemo(() => {
     const map = {};
-    expenses.forEach(t => {
-      if (!map[t.category]) map[t.category] = { category:t.category, icon:t.icon, color:t.color, total:0, items:[] };
+    // Include all transactions (expenses + income) in categories
+    activeTransactions.forEach(t => {
+      if (!map[t.category]) map[t.category] = { category:t.category, icon:t.icon, color:t.color, total:0, items:[], isIncome: t.isIncome };
       map[t.category].total += Math.abs(t.amount);
       map[t.category].items.push(t);
     });
     return Object.values(map).sort((a,b) => b.total - a.total);
-  }, [expenses]);
+  }, [activeTransactions]);
 
   const maxMonthTotal = useMemo(() => Math.max(...byMonth.map(m => m.total), 1), [byMonth]);
   const maxCatTotal = useMemo(() => Math.max(...byCategory.map(c => c.total), 1), [byCategory]);
