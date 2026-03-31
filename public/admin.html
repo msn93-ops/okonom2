@@ -1,1 +1,114 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Økonom Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, sans-serif; background: #0a0a0f; color: #fff; min-height: 100vh; }
+    .login { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 16px; padding: 24px; }
+    .login h1 { font-size: 28px; font-weight: 800; }
+    .login input { width: 100%; max-width: 320px; padding: 12px 16px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; color: #fff; font-size: 15px; outline: none; }
+    .btn { background: linear-gradient(135deg,#8b2fc9,#e040fb); border: none; border-radius: 12px; padding: 12px 32px; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .dashboard { max-width: 900px; margin: 0 auto; padding: 32px 20px; }
+    .dashboard h1 { font-size: 26px; font-weight: 800; margin-bottom: 24px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; }
+    .card-num { font-size: 36px; font-weight: 800; color: #e040fb; }
+    .card-label { font-size: 13px; color: #888; margin-top: 4px; }
+    .section { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px; margin-bottom: 24px; }
+    .section h2 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #ddd; }
+    .q-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; gap: 12px; }
+    .q-row:last-child { border-bottom: none; }
+    .q-text { color: #ccc; flex: 1; }
+    .q-count { background: rgba(224,64,251,0.2); color: #e040fb; border-radius: 20px; padding: 2px 10px; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .chart { display: flex; align-items: flex-end; gap: 4px; height: 80px; margin-top: 8px; }
+    .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .bar { width: 100%; background: linear-gradient(180deg,#e040fb,#8b2fc9); border-radius: 4px 4px 0 0; min-height: 2px; }
+    .bar-label { font-size: 9px; color: #666; transform: rotate(-45deg); white-space: nowrap; }
+    .refresh { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 6px 14px; color: #aaa; font-size: 13px; cursor: pointer; margin-left: auto; display: block; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
 
+<div id="login" class="login">
+  <div style="font-size:48px">👴🏼</div>
+  <h1>Økonom Admin</h1>
+  <p style="color:#888;font-size:14px">Kun til dig, Mads</p>
+  <input type="password" id="pw" placeholder="Adgangskode" onkeydown="if(event.key==='Enter')load()" />
+  <button class="btn" onclick="load()">Log ind</button>
+  <p id="err" style="color:#ef4444;font-size:13px;display:none">Forkert adgangskode</p>
+</div>
+
+<div id="dashboard" class="dashboard" style="display:none">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+    <div style="font-size:32px">👴🏼</div>
+    <h1 style="margin:0">Økonom Stats</h1>
+    <button class="refresh" onclick="refresh()">↻ Opdater</button>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="section">
+    <h2>📅 Daglige aktive brugere (sidste 30 dage)</h2>
+    <div class="chart" id="chart"></div>
+  </div>
+
+  <div class="section">
+    <h2>💬 Top spørgsmål til Holger</h2>
+    <div id="questions"></div>
+  </div>
+</div>
+
+<script>
+let savedPw = '';
+
+async function load() {
+  const pw = document.getElementById('pw').value;
+  if (!pw) return;
+  savedPw = pw;
+  await refresh();
+}
+
+async function refresh() {
+  const res = await fetch('/api/stats?pw=' + encodeURIComponent(savedPw));
+  if (res.status === 401) {
+    document.getElementById('err').style.display = 'block';
+    return;
+  }
+  const data = await res.json();
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  // Cards
+  const { uniqueUsers, totalChats, totalUploads, totalSessions } = data.summary;
+  document.getElementById('cards').innerHTML = [
+    [uniqueUsers, '👤 Unikke brugere'],
+    [totalSessions, '🚀 Sessions'],
+    [totalChats, '💬 Chats med Holger'],
+    [totalUploads, '📁 CSV uploads'],
+  ].map(([n, l]) => `<div class="card"><div class="card-num">${n}</div><div class="card-label">${l}</div></div>`).join('');
+
+  // Chart
+  const maxU = Math.max(...data.dailyUsers.map(d => d.users), 1);
+  document.getElementById('chart').innerHTML = data.dailyUsers.map(d => `
+    <div class="bar-wrap">
+      <div class="bar" style="height:${Math.max((d.users/maxU)*76, 2)}px" title="${d.date}: ${d.users} brugere"></div>
+      <div class="bar-label">${d.date.slice(5)}</div>
+    </div>
+  `).join('');
+
+  // Questions
+  document.getElementById('questions').innerHTML = data.topQuestions.length === 0
+    ? '<p style="color:#666;font-size:13px">Ingen spørgsmål endnu</p>'
+    : data.topQuestions.map(q => `
+      <div class="q-row">
+        <span class="q-text">${q.question}</span>
+        <span class="q-count">${q.count}×</span>
+      </div>
+    `).join('');
+}
+</script>
+</body>
+</html>
