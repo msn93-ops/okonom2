@@ -127,6 +127,42 @@ function parseCSV(text) {
 }
 
 const MDA = ["Jan","Feb","Mar","Apr","Maj","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
+
+// AI categorize transactions that landed in "Andet"
+async function aiCategorize(transactions) {
+  const uncategorized = transactions.filter(t => t.category === "Andet");
+  if (!uncategorized.length) return transactions;
+
+  try {
+    const res = await fetch("/api/categorize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        transactions: uncategorized.map(t => cleanDescription(t.description))
+      }),
+    });
+    const data = await res.json();
+    if (!data.categories?.length) return transactions;
+
+    // Build lookup map
+    const catMap = {};
+    data.categories.forEach(({ id, category }) => {
+      catMap[id] = category;
+    });
+
+    // Map back to original transactions
+    let uncatIdx = 0;
+    return transactions.map(t => {
+      if (t.category !== "Andet") return t;
+      const newCat = catMap[uncatIdx++];
+      if (!newCat || newCat === "Andet") return t;
+      const rule = CATEGORY_RULES.find(r => r.category === newCat);
+      return { ...t, category: newCat, icon: rule?.icon || "📌", color: rule?.color || "#78909C" };
+    });
+  } catch {
+    return transactions;
+  }
+}
 const fmt = n => Math.abs(n).toLocaleString("da-DK", { minimumFractionDigits:0, maximumFractionDigits:0 }) + " kr.";
 
 function renderMessage(text) {
@@ -302,8 +338,16 @@ function CSVUpload({ accounts, onComplete, isDark }) {
     const reader = new FileReader();
     reader.onload = e => {
       const transactions = parseCSV(e.target.result);
-      setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions } }));
+      const uncategorizedCount = transactions.filter(t => t.category === "Andet").length;
+      setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions, aiProcessing: uncategorizedCount > 0 } }));
       track("csv_upload", null, { transactions: transactions.length });
+
+      // If there are uncategorized transactions, run AI categorization in background
+      if (uncategorizedCount > 0) {
+        aiCategorize(transactions).then(improved => {
+          setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions: improved, aiProcessing: false } }));
+        });
+      }
     };
     reader.readAsText(file, "UTF-8");
   };
@@ -343,7 +387,10 @@ function CSVUpload({ accounts, onComplete, isDark }) {
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:14, fontWeight:700, color:fg }}>{label}</div>
                 {uploaded ? (
-                  <div style={{ fontSize:12, color:"#4CAF50", marginTop:2 }}>✓ {uploaded.fileName} · {uploaded.transactions.length} transaktioner</div>
+                  {uploaded.aiProcessing
+                ? <div style={{ fontSize:12, color:"#c084fc", marginTop:2 }}>✨ AI kategoriserer... · {uploaded.transactions.length} transaktioner</div>
+                : <div style={{ fontSize:12, color:"#4CAF50", marginTop:2 }}>✓ {uploaded.fileName} · {uploaded.transactions.length} transaktioner</div>
+              }
                 ) : (
                   <div style={{ fontSize:12, color:sub, marginTop:2 }}>Tryk eller træk CSV-fil hertil</div>
                 )}
