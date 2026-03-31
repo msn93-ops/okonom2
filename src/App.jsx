@@ -375,18 +375,34 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("okonom-rules") || "{}"); } catch { return {}; }
   });
 
-  // Apply custom rules to a transaction description
+  // Extract a fuzzy key: strip month names, numbers, and trailing words
+  // "Elregning Oktober 2024" → "elregning"
+  // "Husleje Januar" → "husleje"
+  // "Netflix abonnement" → "netflix abonnement"
+  const getRuleKey = useCallback((description) => {
+    const months = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december","jan","feb","mar","apr","jun","jul","aug","sep","okt","nov","dec"];
+    const words = (description || "").toLowerCase().trim().split(/\s+/);
+    // Remove words that are months, pure numbers, or year-like (4 digits)
+    const filtered = words.filter(w => !months.includes(w) && !/^\d+$/.test(w));
+    // Take first 2 significant words as key
+    return filtered.slice(0, 2).join(" ") || words[0] || "";
+  }, []);
+
   const applyCustomRule = useCallback((description) => {
-    const key = (description || "").toLowerCase().trim();
-    return customRules[key] || null;
-  }, [customRules]);
+    // First try exact match, then fuzzy key
+    const exact = (description || "").toLowerCase().trim();
+    const fuzzy = getRuleKey(description);
+    return customRules[exact] || customRules[fuzzy] || null;
+  }, [customRules, getRuleKey]);
 
   const saveCustomRule = useCallback((description, newCategory) => {
-    const key = (description || "").toLowerCase().trim();
-    const updated = { ...customRules, [key]: newCategory };
+    // Save both exact and fuzzy key so both match
+    const exact = (description || "").toLowerCase().trim();
+    const fuzzy = getRuleKey(description);
+    const updated = { ...customRules, [exact]: newCategory, [fuzzy]: newCategory };
     setCustomRules(updated);
     localStorage.setItem("okonom-rules", JSON.stringify(updated));
-  }, [customRules]);
+  }, [customRules, getRuleKey]);
   const [isDark, setIsDark] = useState(() => (localStorage.getItem("okonom-theme") || "dark") === "dark");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [categoryEditorTx, setCategoryEditorTx] = useState(null); // transaction being recategorized
