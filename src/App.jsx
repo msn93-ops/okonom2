@@ -331,7 +331,7 @@ function AccountSetup({ onComplete, isDark }) {
 }
 
 // ── CSV Upload Screen ─────────────────────────────────────────────────────────
-function CSVUpload({ accounts, onComplete, isDark }) {
+function CSVUpload({ accounts, isDark, onComplete, onFileLoad }) {
   const [uploads, setUploads] = useState({});
   const [draggingId, setDraggingId] = useState(null);
 
@@ -340,29 +340,21 @@ function CSVUpload({ accounts, onComplete, isDark }) {
     const reader = new FileReader();
     reader.onload = e => {
       const transactions = parseCSV(e.target.result);
-      const uncategorizedCount = transactions.filter(t => t.category === "Andet").length;
-      setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions, aiProcessing: uncategorizedCount > 0 } }));
-      track("csv_upload", null, { transactions: transactions.length });
-
-      // If there are uncategorized transactions, run AI categorization
-      if (uncategorizedCount > 0) {
-        setAiCategorizing(true);
-        setCategorizingProgress({ done: 0, total: uncategorizedCount });
-        aiCategorize(transactions, (done, total) => {
-          setCategorizingProgress({ done, total });
-        }).then(improved => {
+      setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions, aiProcessing: true } }));
+      if (onFileLoad) {
+        onFileLoad(accountId, file.name, transactions, (improved) => {
           setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions: improved, aiProcessing: false } }));
-          setAiCategorizing(false);
-        }).catch(() => {
-          setAiCategorizing(false);
         });
+      } else {
+        setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions, aiProcessing: false } }));
       }
     };
     reader.readAsText(file, "UTF-8");
   };
 
   const uploadedCount = Object.keys(uploads).length;
-  const canContinue = uploadedCount > 0;
+  const isProcessing = Object.values(uploads).some(u => u.aiProcessing);
+  const canContinue = uploadedCount > 0 && !isProcessing;
 
   const bg = isDark ? "#0f0f13" : "#fff";
   const fg = isDark ? "#fff" : "#111";
@@ -395,28 +387,29 @@ function CSVUpload({ accounts, onComplete, isDark }) {
               <span style={{ fontSize:28 }}>{type?.icon}</span>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:14, fontWeight:700, color:fg }}>{label}</div>
-                {uploaded ? (
-                  uploaded.aiProcessing
+                {uploaded
+                  ? uploaded.aiProcessing
                     ? <div style={{ fontSize:12, color:"#c084fc", marginTop:2 }}>✨ AI kategoriserer... · {uploaded.transactions.length} transaktioner</div>
                     : <div style={{ fontSize:12, color:"#4CAF50", marginTop:2 }}>✓ {uploaded.fileName} · {uploaded.transactions.length} transaktioner</div>
-                ) : (
-                  <div style={{ fontSize:12, color:sub, marginTop:2 }}>Tryk eller træk CSV-fil hertil</div>
-                )}
+                  : <div style={{ fontSize:12, color:sub, marginTop:2 }}>Tryk eller træk CSV-fil hertil</div>
+                }
               </div>
-              {uploaded && <span style={{ fontSize:20 }}>✅</span>}
+              {uploaded && !uploaded.aiProcessing && <span style={{ fontSize:20 }}>✅</span>}
+              {uploaded && uploaded.aiProcessing && <span style={{ fontSize:20 }}>⏳</span>}
             </div>
           </div>
         );
       })}
 
       <button
-        onClick={() => canContinue && !Object.values(uploads).some(u => u.aiProcessing) && onComplete(uploads)}
+        onClick={() => canContinue && onComplete(uploads)}
         style={{ background: canContinue ? "linear-gradient(135deg,#8b2fc9,#e040fb)" : "rgba(128,128,128,0.3)", border:"none", borderRadius:14, padding:"16px", color:"#fff", fontSize:15, fontWeight:700, cursor: canContinue ? "pointer" : "default", marginTop:"auto", opacity: canContinue ? 1 : 0.6 }}>
-        {!canContinue ? "Upload mindst én CSV-fil" : Object.values(uploads).some(u => u.aiProcessing) ? "✨ AI kategoriserer..." : "Se overblik (" + uploadedCount + "/" + accounts.length + " konti) →"}
+        {!canContinue && uploadedCount === 0 ? "Upload mindst én CSV-fil" : isProcessing ? "✨ AI kategoriserer..." : "Se overblik (" + uploadedCount + "/" + accounts.length + " konti) →"}
       </button>
     </div>
   );
 }
+
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
