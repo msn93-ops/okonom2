@@ -162,13 +162,19 @@ function TRow({ t, S, onEdit }) {
   );
 }
 
-function Nav({ view, setView, isDark, S }) {
-  const tabs = [["overview","📊","Overblik"],["months","📅","Måneder"],["categories","🏷️","Kategorier"],["ai","👴🏼","Holger"]];
+function Nav({ view, setView, isDark, S, hasPlan }) {
+  const tabs = [
+    ["overview","📊","Overblik"],
+    ["months","📅","Måneder"],
+    ["categories","🏷️","Kategorier"],
+    ["ai","👴🏼","Holger"],
+    ...(hasPlan ? [["savings","📈","Opsparing"]] : []),
+  ];
   return (
-    <div style={S.nav}>
+    <div style={{ ...S.nav, justifyContent: tabs.length === 5 ? "space-around" : "space-around" }}>
       {tabs.map(([id,icon,label]) => (
         <button key={id} style={S.navBtn} onClick={() => setView(id)}>
-          <span style={{ fontSize:20 }}>{icon}</span>
+          <span style={{ fontSize: tabs.length === 5 ? 18 : 20 }}>{icon}</span>
           <span style={{ fontSize:9, color: view===id ? "#9333ea" : (isDark ? "#555" : "#999") }}>{label}</span>
         </button>
       ))}
@@ -405,7 +411,8 @@ export default function App() {
   }, [customRules, getRuleKey]);
   const [isDark, setIsDark] = useState(() => (localStorage.getItem("okonom-theme") || "dark") === "dark");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [categoryEditorTx, setCategoryEditorTx] = useState(null); // transaction being recategorized
+  const [categoryEditorTx, setCategoryEditorTx] = useState(null);
+  const [savingsPlan, setSavingsPlan] = useState(null); // { monthlyAmount, goal, months, tips } // transaction being recategorized
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [subscriptionPopup, setSubscriptionPopup] = useState(false);
   const chatEndRef = useRef(null);
@@ -977,7 +984,7 @@ SAMTALEREGLER:
                     <div style={{ fontSize:12, color: isDark ? "#666" : "#999", lineHeight:1.5 }}>Hej! Hvad kan jeg hjælpe dig med?</div>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                    {["Hvad bruger jeg flest penge på?","Opsummer mine abonnementer","Hvor kan jeg spare penge?","Lav en opsparingsplan for mig"].map(p => (
+                    {["Hvad bruger jeg flest penge på?","Opsummer mine abonnementer","Hvor kan jeg spare penge?","Lav en visuel opsparingsplan for mig"].map(p => (
                       <button key={p} onClick={() => sendAiMessage(p)}
                         style={{ background:"rgba(224,64,251,0.12)", border:"1px solid rgba(224,64,251,0.35)", borderRadius:14, padding:"13px 16px", color: isDark ? "#fff" : "#333", fontSize:13, fontWeight:500, cursor:"pointer", textAlign:"left", width:"100%" }}>
                         {p}
@@ -1019,7 +1026,109 @@ SAMTALEREGLER:
             </div>
           )}
 
-                    <Nav view={view} setView={setView} isDark={isDark} S={S} />
+                    {/* SAVINGS PLAN VIEW */}
+          {view === "savings" && savingsPlan && (() => {
+            const { monthlyAmount, months, tips, createdAt } = savingsPlan;
+            const totalGoal = monthlyAmount * months;
+
+            // Build month-by-month data
+            const planData = [];
+            let cumulative = 0;
+            const now = new Date();
+            for (let i = 0; i < months; i++) {
+              cumulative += monthlyAmount;
+              const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+              planData.push({
+                label: MDA[d.getMonth()] + " " + String(d.getFullYear()).slice(2),
+                value: cumulative,
+                monthly: monthlyAmount,
+              });
+            }
+
+            const maxVal = planData[planData.length - 1]?.value || 1;
+            const milestones = [0.25, 0.5, 0.75, 1].map(pct => ({
+              pct,
+              label: Math.round(totalGoal * pct).toLocaleString("da-DK") + " kr.",
+              month: planData.findIndex(p => p.value >= totalGoal * pct) + 1,
+            }));
+
+            return <div style={S.scroll}>
+              {/* Hero */}
+              <div style={{ ...S.heroCard, gap:8 }}>
+                <span style={S.heroLabel}>Opsparingsmål over {months} måneder</span>
+                <span style={{ fontSize:34, fontWeight:800, color:"#22c55e", letterSpacing:-1 }}>
+                  {totalGoal.toLocaleString("da-DK")} kr.
+                </span>
+                <div style={{ display:"flex", gap:16, alignItems:"center" }}>
+                  <span style={S.heroSub}>↑ {monthlyAmount.toLocaleString("da-DK")} kr./md.</span>
+                  <span style={{ width:1, alignSelf:"stretch", background:"rgba(255,255,255,0.15)" }} />
+                  <span style={S.heroSub}>📅 {months} måneder</span>
+                </div>
+              </div>
+
+              {/* Bar chart */}
+              <div style={S.section}>
+                <span style={S.sectionTitle}>📈 Opsparing måned for måned</span>
+                <div style={{ padding:"12px 14px 16px" }}>
+                  <div style={{ display:"flex", alignItems:"flex-end", gap:3, height:120 }}>
+                    {planData.filter((_, i) => i % (months > 12 ? 2 : 1) === 0).map((d, i) => (
+                      <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                        <div style={{ width:"100%", background:"linear-gradient(180deg,#22c55e,#16a34a)", borderRadius:"3px 3px 0 0", height:((d.value/maxVal)*110) + "px", minHeight:2, transition:"height 0.3s" }} />
+                        <span style={{ fontSize:7, color: isDark ? "#555" : "#bbb", transform:"rotate(-45deg)", transformOrigin:"top", whiteSpace:"nowrap" }}>{d.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Milestones */}
+              <div style={S.section}>
+                <span style={S.sectionTitle}>🏆 Milepæle</span>
+                {milestones.map((m, i) => (
+                  <div key={i} style={S.row}>
+                    <div style={{ width:36, height:36, borderRadius:10, background: ["rgba(34,197,94,0.15)","rgba(34,197,94,0.25)","rgba(34,197,94,0.35)","rgba(34,197,94,0.5)"][i], border:"1.5px solid #22c55e", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>
+                      {["🌱","🌿","🌳","🎯"][i]}
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={S.rowTitle}>{m.label}</div>
+                      <div style={S.rowSub}>{["25%","50%","75%","Mål nået"][i]} · måned {m.month}</div>
+                    </div>
+                    <div style={{ width:60, height:6, background: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)", borderRadius:3, overflow:"hidden" }}>
+                      <div style={{ height:"100%", width:(m.pct*100) + "%", background:"#22c55e", borderRadius:3 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Holgers tips */}
+              {tips.length > 0 && (
+                <div style={S.section}>
+                  <span style={S.sectionTitle}>👴🏼 Holgers sparetips</span>
+                  {tips.map((tip, i) => (
+                    <div key={i} style={S.row}>
+                      <div style={{ width:28, height:28, borderRadius:8, background:"rgba(147,51,234,0.15)", border:"1px solid rgba(147,51,234,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, flexShrink:0 }}>
+                        {i+1}
+                      </div>
+                      <div style={{ ...S.rowTitle, fontWeight:400, fontSize:13 }}>{tip}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Lavet af */}
+              <div style={{ textAlign:"center", padding:"4px 0 8px" }}>
+                <span style={{ fontSize:11, color: isDark ? "#555" : "#bbb" }}>Lavet af Holger · {createdAt}</span>
+              </div>
+
+              {/* Regenerate */}
+              <button onClick={() => { setSavingsPlan(null); setView("ai"); }}
+                style={{ background:"none", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", borderRadius:12, padding:"11px", color: isDark ? "#888" : "#999", fontSize:13, cursor:"pointer" }}>
+                ↩ Gå tilbage til Holger
+              </button>
+            </div>;
+          })()}
+
+                    <Nav view={view} setView={setView} isDark={isDark} S={S} hasPlan={!!savingsPlan} />
         </div>
 
         {/* CATEGORY EDITOR MODAL */}
