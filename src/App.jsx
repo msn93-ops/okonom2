@@ -1011,6 +1011,37 @@ SAMTALEREGLER:
                   <div ref={chatEndRef} />
                 </div>
               )}
+              {/* Generate plan button - shown when Holger has given savings advice */}
+              {aiMessages.length >= 2 && (
+                <div style={{ padding:"8px 14px 0", flexShrink:0 }}>
+                  <button
+                    onClick={() => {
+                      // Generate plan from conversation context
+                      const allText = aiMessages.map(m => m.content).join(" ");
+                      const numMatches = [...allText.matchAll(/(\d[\d.]*\.?\d*)\s*kr/g)];
+                      const amounts = numMatches.map(m => parseFloat(m[1].replace(/\./g,""))).filter(n => n >= 500 && n <= 100000);
+                      const monthlyAmount = amounts.length > 0
+                        ? amounts.sort((a,b) => a-b)[Math.floor(amounts.length/2)]
+                        : Math.max(Math.round((totalIncome - totalExpenses) / 12 * 0.8), 1000);
+                      const tipLines = allText.split("
+")
+                        .filter(l => /^[-*•–]/.test(l.trim()))
+                        .map(l => l.replace(/^[-*•–]\s*/, "").trim())
+                        .filter(l => l.length > 8 && l.length < 120)
+                        .slice(0, 5);
+                      setSavingsPlan({
+                        monthlyAmount: Math.round(monthlyAmount),
+                        months: 24,
+                        tips: tipLines,
+                        createdAt: new Date().toLocaleDateString("da-DK"),
+                      });
+                      setView("savings");
+                    }}
+                    style={{ width:"100%", background:"linear-gradient(135deg,#052e16,#14532d)", border:"1px solid rgba(34,197,94,0.3)", borderRadius:12, padding:"10px 14px", color:"#4ade80", fontSize:13, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                    <span>📈</span> Se personlig opsparingsplan
+                  </button>
+                </div>
+              )}
               <div style={{ display:"flex", gap:8, padding:"10px 14px 14px", flexShrink:0, borderTop: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)", background: isDark ? "#0f0f13" : "#ffffff" }}>
                 <input
                   style={{ flex:1, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: isDark ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(0,0,0,0.15)", borderRadius:22, padding:"11px 16px", color: isDark ? "#fff" : "#111", fontSize:13, outline:"none" }}
