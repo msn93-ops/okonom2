@@ -29,22 +29,56 @@ const ACCOUNT_TYPES = [
 ];
 
 const CATEGORY_RULES = [
-  { keywords: ["netto","fakta","rema","aldi","lidl","meny","irma","bilka","føtex","kvickly","superbrugsen","dagligbrugsen","spar","coop","daglig"], category: "Dagligvarer", icon: "🛒", color: "#4CAF50" },
-  { keywords: ["seven eleven","7-eleven","kiosk","q8","shell","circle k","ok benzin","esso"], category: "Kiosk & Benzin", icon: "⛽", color: "#FF9800" },
-  { keywords: ["restaurant","cafe","pizza","burger","mcdonalds","kfc","subway","sushi","takeaway","bistro","grill"], category: "Mad & Restauranter", icon: "🍽️", color: "#E91E63" },
-  { keywords: ["netflix","spotify","hbo","disney","viaplay","youtube","apple music","deezer","abonnement","subscription"], category: "Streaming & Abonnementer", icon: "📺", color: "#9C27B0" },
-  { keywords: ["dsb","rejsekort","bus","metro","tog","fly","airport","taxa","uber","bolt"], category: "Transport", icon: "🚌", color: "#2196F3" },
-  { keywords: ["husleje","bolig","el ","vand ","varme","forsikring","ejendom"], category: "Bolig & Regninger", icon: "🏠", color: "#795548" },
-  { keywords: ["apotek","læge","hospital","tandlæge","medicin","fitness","gym","træning"], category: "Sundhed & Fitness", icon: "💊", color: "#00BCD4" },
-  { keywords: ["zalando","h&m","zara","tøj","sko","mode","fashion","matas","sephora"], category: "Tøj & Mode", icon: "👗", color: "#FF5722" },
-  { keywords: ["amazon","ebay","coolshop","proshop","elgiganten","power","expert"], category: "Shopping & Elektronik", icon: "🛍️", color: "#607D8B" },
-  { keywords: ["løn","salary","indkomst","overførsel fra","betaling fra","lønoverførsel","udbetaling"], category: "Lønindtægt", icon: "💵", color: "#22c55e" },
-  { keywords: ["hæveautomat","kontant","kontanthævning"], category: "Kontanter", icon: "💵", color: "#9E9E9E" },
-  { keywords: ["overførsel til","overf. til","intern overførsel"], category: "Intern overførsel", icon: "🔄", color: "#607D8B" },
+  // Dagligvarer
+  { keywords: ["netto","fakta","rema 1000","rema1000","aldi","lidl","meny","irma","bilka","føtex","kvickly","superbrugsen","dagligbrugsen","spar marked","coop","dagligvarer","mad og","kolonial","jem & fix","jem&fix","normal aps"], category: "Dagligvarer", icon: "🛒", color: "#4CAF50" },
+  // Mad & Restauranter (before Kiosk so cafe/espresso matches correctly)
+  { keywords: ["restaurant","cafe ","café","pizza","burger","mcdonalds","kfc","subway","sushi","takeaway","bistro","grill","vinstue","espresso","coffee","starbucks","baresso","joe &","lagkagehuset","born & brød","mad bar","foodie","kebab","thai","indian","chinese","wok","tapas","brunch","smørrebrød","fisketorvet","me and me","vivaldi"], category: "Mad & Restauranter", icon: "🍽️", color: "#E91E63" },
+  // Kiosk & Benzin
+  { keywords: ["seven eleven","7-eleven","q8","shell","circle k","ok benzin","esso","st1","uno-x","go'on","benzin","tankstation"], category: "Kiosk & Benzin", icon: "⛽", color: "#FF9800" },
+  // Streaming & Abonnementer
+  { keywords: ["netflix","spotify","hbo","disney","viaplay","youtube","apple music","deezer","abonnement","subscription","claude.ai","anthropic","google one","playstation","xbox","adobe","dropbox","icloud","tidal","mofibo","storytel","visma","logbuy"], category: "Streaming & Abonnementer", icon: "📺", color: "#9C27B0" },
+  // Transport
+  { keywords: ["dsb","rejsekort","movia","metro","tog ","fly","airport","lufthavn","taxa","uber","bolt","flixbus","abildskou","molslinjen","færge","parkering","parking","brobizz","atpcard"], category: "Transport", icon: "🚌", color: "#2196F3" },
+  // Bolig & Regninger
+  { keywords: ["husleje","boligindskud","el ","elregning","vand ","varme","forsikring","ejendom","tryg ","codan","alka ","topdanmark","grundejer","fjernvarme","renovation","almenbrand","fællesudgift","homeowner"], category: "Bolig & Regninger", icon: "🏠", color: "#795548" },
+  // Sundhed & Fitness
+  { keywords: ["apotek","læge","hospital","tandlæge","medicin","fitness","gym","træning","sats ","crossfit","health","wellness","optiker","fysio","kiroprak","hvidovresport","sport.dk","running"], category: "Sundhed & Fitness", icon: "💊", color: "#00BCD4" },
+  // Tøj & Mode
+  { keywords: ["zalando","h&m","zara","tøj","sko ","skobutik","mode","matas","sephora","søstrene grene","tiger","flying tiger","dressmann","jack & jones","vero moda","only ","bestseller","magasin","illum","skechers","nike ","adidas ","sp bahne","bahne"], category: "Tøj & Mode", icon: "👗", color: "#FF5722" },
+  // Shopping & Elektronik
+  { keywords: ["amazon","ebay","coolshop","proshop","elgiganten","power ","expert ","imerco","søstrene","bog & ide","saxo","thansen","t.hansen","bauhaus","silvan","stark ","optimera","clasohlson","clas ohlson","pop mart","kvickly non"], category: "Shopping & Elektronik", icon: "🛍️", color: "#607D8B" },
+  // Spil & Betting
+  { keywords: ["bet365","danskespil","lotteri","jackpot","unibet","betsson","mrgreen","mr green","888casino","casino","poker","bingo","gambling"], category: "Spil & Betting", icon: "🎲", color: "#F59E0B" },
+  // Oplevelser & Fritid
+  { keywords: ["biograf","kino","teater","museum","zoo","tivoli","legoland","aquadome","escape room","bowling","paintball","koncert","festival","ticketmaster","billetlugen","rundetaarn","illustion","illusions"], category: "Oplevelser & Fritid", icon: "🎭", color: "#8B5CF6" },
+  // Lønindtægt
+  { keywords: ["løn","salary","lønudbetaling","lønoverførsel","udbetaling løn"], category: "Lønindtægt", icon: "💵", color: "#22c55e" },
+  // MobilePay person-overførsler (modtaget)
+  { keywords: ["mobilepay jonas","mobilepay sofie","mobilepay david","mobilepay caroline","mobilepay nikolaj","mobilepay maryam"], category: "Modtaget MobilePay", icon: "📲", color: "#10B981" },
+  // Opsparing & overførsler
+  { keywords: ["til egen opsparing","til fælles budget","opsparing","fiskeopsparing","overf. til","intern overf"], category: "Opsparing & Overførsler", icon: "🔄", color: "#6B7280" },
+  // Kontanter
+  { keywords: ["hæveautomat","kontanthævning","atm"], category: "Kontanter", icon: "💵", color: "#9E9E9E" },
 ];
 
+// Clean transaction description before categorizing
+function cleanDescription(desc) {
+  return (desc || "")
+    .replace(/Dankort-køb/gi, "")
+    .replace(/Visa\/Dankort/gi, "")
+    .replace(/MobilePay køb/gi, "")
+    .replace(/MobilePay:\s*/gi, "")
+    .replace(/Notanr?\s*[\w\d]+/gi, "")
+    .replace(/Nota\s*[\w\d]+/gi, "")
+    .replace(/(USD|EUR|GBP|DKK)\s*[\d.,]+/gi, "")
+    .replace(/Kurs\s*[\d.,]+/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function categorize(description) {
-  const lower = (description || "").toLowerCase();
+  const cleaned = cleanDescription(description);
+  const lower = cleaned.toLowerCase();
   for (const rule of CATEGORY_RULES) {
     if (rule.keywords.some(k => lower.includes(k)))
       return { category: rule.category, icon: rule.icon, color: rule.color };
@@ -152,7 +186,7 @@ function TRow({ t, S, onEdit }) {
     <div style={{ ...S.row, cursor: onEdit ? "pointer" : "default" }} onClick={() => onEdit && onEdit(t)}>
       <div style={{ ...S.catIcon, background: t.color + "22", border: "1.5px solid " + t.color, fontSize: 15 }}>{t.icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ ...S.rowTitle, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.description || "–"}</div>
+        <div style={{ ...S.rowTitle, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{cleanDescription(t.description) || t.description || "–"}</div>
         <div style={S.rowSub}>{t.dateStr}</div>
       </div>
       <span style={{ fontSize:13, fontWeight:700, color: t.isIncome ? "#4ade80" : "#ef4444", flexShrink:0 }}>
