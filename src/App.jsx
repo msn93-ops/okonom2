@@ -798,7 +798,24 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
             <button onClick={() => setStep("setup")} style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:10, width:32, height:32, cursor:"pointer", color: isDark ? "#fff" : "#333" }}>←</button>
             <h2 style={{ margin:0, fontSize:20, fontWeight:800, color: isDark ? "#fff" : "#111" }}>Upload kontoudtog</h2>
           </div>
-          <CSVUpload accounts={accounts} isDark={isDark} onComplete={ups => {
+          <CSVUpload accounts={accounts} isDark={isDark}
+            onFileLoad={(accountId, fileName, transactions, onDone) => {
+              const uncategorizedCount = transactions.filter(t => t.category === "Andet").length;
+              track("csv_upload", null, { transactions: transactions.length });
+              if (uncategorizedCount > 0) {
+                setAiCategorizing(true);
+                setCategorizingProgress({ done: 0, total: uncategorizedCount });
+                aiCategorize(transactions, (done, total) => {
+                  setCategorizingProgress({ done, total });
+                }).then(improved => {
+                  onDone(improved);
+                  setAiCategorizing(false);
+                }).catch(() => {
+                  setAiCategorizing(false);
+                });
+              }
+            }}
+            onComplete={ups => {
             setUploads(ups);
             setActiveAccount("all");
             setStep("app");
