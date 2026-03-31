@@ -1023,8 +1023,8 @@ SAMTALEREGLER:
                       const monthlyAmount = amounts.length > 0
                         ? amounts.sort((a,b) => a-b)[Math.floor(amounts.length/2)]
                         : Math.max(Math.round((totalIncome - totalExpenses) / 12 * 0.8), 1000);
-                      const tipLines = allText.split("
-")
+                      const tipLines = allText.split("\n")
+
                         .filter(l => /^[-*•–]/.test(l.trim()))
                         .map(l => l.replace(/^[-*•–]\s*/, "").trim())
                         .filter(l => l.length > 8 && l.length < 120)
