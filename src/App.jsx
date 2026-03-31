@@ -129,7 +129,7 @@ function parseCSV(text) {
 const MDA = ["Jan","Feb","Mar","Apr","Maj","Jun","Jul","Aug","Sep","Okt","Nov","Dec"];
 
 // AI categorize transactions that landed in "Andet"
-async function aiCategorize(transactions) {
+async function aiCategorize(transactions, onProgress) {
   const uncategorized = transactions.filter(t => t.category === "Andet");
   if (!uncategorized.length) return transactions;
 
@@ -152,13 +152,15 @@ async function aiCategorize(transactions) {
 
     // Map back to original transactions
     let uncatIdx = 0;
-    return transactions.map(t => {
+    const result = transactions.map(t => {
       if (t.category !== "Andet") return t;
       const newCat = catMap[uncatIdx++];
+      if (onProgress) onProgress(uncatIdx, Object.keys(catMap).length);
       if (!newCat || newCat === "Andet") return t;
       const rule = CATEGORY_RULES.find(r => r.category === newCat);
       return { ...t, category: newCat, icon: rule?.icon || "📌", color: rule?.color || "#78909C" };
     });
+    return result;
   } catch {
     return transactions;
   }
@@ -342,10 +344,17 @@ function CSVUpload({ accounts, onComplete, isDark }) {
       setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions, aiProcessing: uncategorizedCount > 0 } }));
       track("csv_upload", null, { transactions: transactions.length });
 
-      // If there are uncategorized transactions, run AI categorization in background
+      // If there are uncategorized transactions, run AI categorization
       if (uncategorizedCount > 0) {
-        aiCategorize(transactions).then(improved => {
+        setAiCategorizing(true);
+        setCategorizingProgress({ done: 0, total: uncategorizedCount });
+        aiCategorize(transactions, (done, total) => {
+          setCategorizingProgress({ done, total });
+        }).then(improved => {
           setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions: improved, aiProcessing: false } }));
+          setAiCategorizing(false);
+        }).catch(() => {
+          setAiCategorizing(false);
         });
       }
     };
@@ -401,9 +410,9 @@ function CSVUpload({ accounts, onComplete, isDark }) {
       })}
 
       <button
-        onClick={() => canContinue && onComplete(uploads)}
+        onClick={() => canContinue && !Object.values(uploads).some(u => u.aiProcessing) && onComplete(uploads)}
         style={{ background: canContinue ? "linear-gradient(135deg,#8b2fc9,#e040fb)" : "rgba(128,128,128,0.3)", border:"none", borderRadius:14, padding:"16px", color:"#fff", fontSize:15, fontWeight:700, cursor: canContinue ? "pointer" : "default", marginTop:"auto", opacity: canContinue ? 1 : 0.6 }}>
-        {canContinue ? "Se overblik (" + uploadedCount + "/" + accounts.length + " konti) →" : "Upload mindst én CSV-fil"}
+        {!canContinue ? "Upload mindst én CSV-fil" : Object.values(uploads).some(u => u.aiProcessing) ? "✨ AI kategoriserer..." : "Se overblik (" + uploadedCount + "/" + accounts.length + " konti) →"}
       </button>
     </div>
   );
@@ -492,6 +501,8 @@ export default function App() {
   const [isDark, setIsDark] = useState(() => (localStorage.getItem("okonom-theme") || "dark") === "dark");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [categoryEditorTx, setCategoryEditorTx] = useState(null);
+  const [aiCategorizing, setAiCategorizing] = useState(false);
+  const [categorizingProgress, setCategorizingProgress] = useState({ done: 0, total: 0 });
   const [savingsPlan, setSavingsPlan] = useState(null); // { monthlyAmount, goal, months, tips } // transaction being recategorized
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [subscriptionPopup, setSubscriptionPopup] = useState(false);
@@ -750,6 +761,39 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
     return (
       <div style={S.shell}>
         <div style={{ ...S.phone, display:"flex", flexDirection:"column" }}>
+
+          {/* AI CATEGORIZING LOADING SCREEN */}
+          {aiCategorizing && (
+            <div style={{ position:"absolute", inset:0, background: isDark ? "rgba(10,10,20,0.97)" : "rgba(255,255,255,0.97)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:200, gap:20, padding:32, borderRadius: "inherit" }}>
+              <div style={{ fontSize:64 }}>👴🏼</div>
+              <div style={{ fontSize:18, fontWeight:700, color: isDark ? "#fff" : "#111", textAlign:"center" }}>Holger analyserer dine transaktioner</div>
+              <div style={{ fontSize:13, color: isDark ? "#888" : "#666", textAlign:"center", lineHeight:1.6 }}>
+                Jeg kategoriserer dine posteringer intelligent,<br/>så du får det bedste overblik.
+              </div>
+              {/* Progress bar */}
+              <div style={{ width:"100%", maxWidth:280 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                  <span style={{ fontSize:12, color: isDark ? "#888" : "#999" }}>Kategoriserer...</span>
+                  <span style={{ fontSize:12, color:"#9333ea", fontWeight:600 }}>
+                    {categorizingProgress.total > 0 ? Math.round((categorizingProgress.done / categorizingProgress.total) * 100) : 0}%
+                  </span>
+                </div>
+                <div style={{ height:8, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)", borderRadius:4, overflow:"hidden" }}>
+                  <div style={{ height:"100%", borderRadius:4, background:"linear-gradient(90deg,#8b2fc9,#e040fb)", transition:"width 0.4s ease", width: (categorizingProgress.total > 0 ? (categorizingProgress.done / categorizingProgress.total) * 100 : 10) + "%" }} />
+                </div>
+                <div style={{ fontSize:11, color: isDark ? "#555" : "#bbb", marginTop:8, textAlign:"center" }}>
+                  {categorizingProgress.done} af {categorizingProgress.total} transaktioner behandlet
+                </div>
+              </div>
+              {/* Animated dots */}
+              <div style={{ display:"flex", gap:8 }}>
+                {[0,1,2].map(i => (
+                  <div key={i} style={{ width:8, height:8, borderRadius:"50%", background:"#9333ea", opacity: 0.3 + i * 0.35, animation:"pulse 1s infinite" }} />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ padding:"20px 20px 0", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
             <button onClick={() => setStep("setup")} style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:10, width:32, height:32, cursor:"pointer", color: isDark ? "#fff" : "#333" }}>←</button>
             <h2 style={{ margin:0, fontSize:20, fontWeight:800, color: isDark ? "#fff" : "#111" }}>Upload kontoudtog</h2>
