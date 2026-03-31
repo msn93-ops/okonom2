@@ -147,9 +147,9 @@ function CatRow({ c, max, onClick, count, S }) {
   );
 }
 
-function TRow({ t, S }) {
+function TRow({ t, S, onEdit }) {
   return (
-    <div style={S.row}>
+    <div style={{ ...S.row, cursor: onEdit ? "pointer" : "default" }} onClick={() => onEdit && onEdit(t)}>
       <div style={{ ...S.catIcon, background: t.color + "22", border: "1.5px solid " + t.color, fontSize: 15 }}>{t.icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ ...S.rowTitle, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.description || "–"}</div>
@@ -371,8 +371,25 @@ export default function App() {
     }));
   };
   const [privacyAccepted, setPrivacyAccepted] = useState(() => localStorage.getItem("okonom-privacy") === "true");
+  const [customRules, setCustomRules] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("okonom-rules") || "{}"); } catch { return {}; }
+  });
+
+  // Apply custom rules to a transaction description
+  const applyCustomRule = useCallback((description) => {
+    const key = (description || "").toLowerCase().trim();
+    return customRules[key] || null;
+  }, [customRules]);
+
+  const saveCustomRule = useCallback((description, newCategory) => {
+    const key = (description || "").toLowerCase().trim();
+    const updated = { ...customRules, [key]: newCategory };
+    setCustomRules(updated);
+    localStorage.setItem("okonom-rules", JSON.stringify(updated));
+  }, [customRules]);
   const [isDark, setIsDark] = useState(() => (localStorage.getItem("okonom-theme") || "dark") === "dark");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [categoryEditorTx, setCategoryEditorTx] = useState(null); // transaction being recategorized
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [subscriptionPopup, setSubscriptionPopup] = useState(false);
   const chatEndRef = useRef(null);
@@ -390,11 +407,20 @@ export default function App() {
 
   // Get active transactions
   const activeTransactions = useMemo(() => {
+    let txns;
     if (activeAccount === "all") {
-      return Object.values(uploads).flatMap(u => u.transactions);
+      txns = Object.values(uploads).flatMap(u => u.transactions);
+    } else {
+      txns = uploads[activeAccount]?.transactions || [];
     }
-    return uploads[activeAccount]?.transactions || [];
-  }, [activeAccount, uploads]);
+    // Apply custom rules
+    return txns.map(t => {
+      const custom = customRules[(t.description || "").toLowerCase().trim()];
+      if (!custom) return t;
+      const rule = CATEGORY_RULES.find(r => r.category === custom.category);
+      return { ...t, category: custom.category, icon: rule?.icon || custom.icon || "📌", color: rule?.color || custom.color || "#78909C" };
+    });
+  }, [activeAccount, uploads, customRules]);
 
   const expenses = useMemo(() => activeTransactions.filter(t => t.amount < 0), [activeTransactions]);
   const income = useMemo(() => activeTransactions.filter(t => t.amount > 0), [activeTransactions]);
@@ -762,7 +788,7 @@ SAMTALEREGLER:
                 </div>
                 <div style={S.section}>
                   <span style={S.sectionTitle}>Alle transaktioner</span>
-                  {[...selMonth.items].filter(t => t.amount < 0).sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
+                  {[...selMonth.items].filter(t => t.amount < 0).sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} onEdit={setCategoryEditorTx} />)}
                 </div>
               </>;
             })()}
@@ -801,7 +827,7 @@ SAMTALEREGLER:
                 )}
                 <div style={S.section}>
                   <span style={S.sectionTitle}>Alle transaktioner</span>
-                  {[...selCat.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
+                  {[...selCat.items].sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} onEdit={setCategoryEditorTx} />)}
                 </div>
               </>;
             })()}
@@ -818,7 +844,7 @@ SAMTALEREGLER:
                 </div>
                 <div style={S.section}>
                   <span style={S.sectionTitle}>Transaktioner</span>
-                  {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
+                  {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} onEdit={setCategoryEditorTx} />)}
                 </div>
               </>;
             })()}
@@ -841,7 +867,7 @@ SAMTALEREGLER:
                 </div>
                 <div style={S.section}>
                   <span style={S.sectionTitle}>Transaktioner</span>
-                  {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} />)}
+                  {items.sort((a,b) => (b.date||0)-(a.date||0)).map(t => <TRow key={t.id} t={t} S={S} onEdit={setCategoryEditorTx} />)}
                 </div>
               </>;
             })()}
@@ -971,6 +997,40 @@ SAMTALEREGLER:
 
                     <Nav view={view} setView={setView} isDark={isDark} S={S} />
         </div>
+
+        {/* CATEGORY EDITOR MODAL */}
+        {categoryEditorTx && (
+          <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.7)", display:"flex", alignItems:"flex-end", zIndex:100 }} onClick={() => setCategoryEditorTx(null)}>
+            <div style={{ width:"100%", background: isDark ? "#1a1a2e" : "#fff", borderRadius:"24px 24px 0 0", padding:"20px 20px 40px", display:"flex", flexDirection:"column", gap:12 }} onClick={e => e.stopPropagation()}>
+              <div style={{ width:36, height:4, background:"rgba(128,128,128,0.3)", borderRadius:2, margin:"0 auto 4px" }} />
+              <h3 style={{ margin:0, fontSize:16, fontWeight:700, color: isDark ? "#fff" : "#111" }}>Flyt til kategori</h3>
+              <div style={{ fontSize:13, color: isDark ? "#888" : "#999", background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)", borderRadius:10, padding:"10px 12px" }}>
+                {categoryEditorTx.description}
+              </div>
+              <div style={{ fontSize:11, color:"#9333ea", fontWeight:600, marginTop:4 }}>
+                Alle transaktioner med samme navn flyttes automatisk
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:340, overflowY:"auto", scrollbarWidth:"none" }}>
+                {CATEGORY_RULES.map(rule => (
+                  <button key={rule.category}
+                    onClick={() => {
+                      saveCustomRule(categoryEditorTx.description, { category: rule.category, icon: rule.icon, color: rule.color });
+                      setCategoryEditorTx(null);
+                    }}
+                    style={{ display:"flex", alignItems:"center", gap:12, background: categoryEditorTx.category === rule.category ? "rgba(147,51,234,0.15)" : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"), border: categoryEditorTx.category === rule.category ? "1px solid rgba(147,51,234,0.5)" : (isDark ? "1px solid rgba(255,255,255,0.07)" : "1px solid rgba(0,0,0,0.07)"), borderRadius:12, padding:"11px 14px", cursor:"pointer", textAlign:"left" }}>
+                    <span style={{ fontSize:20 }}>{rule.icon}</span>
+                    <span style={{ fontSize:13, fontWeight:500, color: isDark ? "#ddd" : "#222" }}>{rule.category}</span>
+                    {categoryEditorTx.category === rule.category && <span style={{ marginLeft:"auto", fontSize:11, color:"#9333ea" }}>Nuværende</span>}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setCategoryEditorTx(null)}
+                style={{ background:"none", border:"none", color: isDark ? "#666" : "#999", fontSize:13, cursor:"pointer", marginTop:4 }}>
+                Annuller
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* SETTINGS MODAL */}
         {settingsOpen && (
