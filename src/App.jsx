@@ -429,9 +429,17 @@ export default function App() {
     } else {
       txns = uploads[activeAccount]?.transactions || [];
     }
-    // Apply custom rules
+    // Apply custom rules using both exact and fuzzy matching
+    const months = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december","jan","feb","mar","apr","jun","jul","aug","sep","okt","nov","dec"];
+    const getFuzzyKey = (desc) => {
+      const words = (desc || "").toLowerCase().trim().split(/\s+/);
+      const filtered = words.filter(w => !months.includes(w) && !/^\d+$/.test(w));
+      return filtered.slice(0,2).join(" ") || words[0] || "";
+    };
     return txns.map(t => {
-      const custom = customRules[(t.description || "").toLowerCase().trim()];
+      const exact = (t.description || "").toLowerCase().trim();
+      const fuzzy = getFuzzyKey(t.description);
+      const custom = customRules[exact] || customRules[fuzzy];
       if (!custom) return t;
       const rule = CATEGORY_RULES.find(r => r.category === custom.category);
       return { ...t, category: custom.category, icon: rule?.icon || custom.icon || "📌", color: rule?.color || custom.color || "#78909C" };
