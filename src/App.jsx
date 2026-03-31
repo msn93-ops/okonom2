@@ -1,5 +1,25 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 
+// Generate anonymous user ID
+function getUserId() {
+  let id = localStorage.getItem("okonom-uid");
+  if (!id) {
+    id = "u_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem("okonom-uid", id);
+  }
+  return id;
+}
+
+async function track(event_type, question = null, metadata = null) {
+  try {
+    await fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_type, user_id: getUserId(), question, metadata }),
+    });
+  } catch {}
+}
+
 const ACCOUNT_TYPES = [
   { id: "loen", label: "Lønkonto", icon: "💰" },
   { id: "opsparing", label: "Opsparingskonto", icon: "🏦" },
@@ -243,6 +263,7 @@ function CSVUpload({ accounts, onComplete, isDark }) {
     reader.onload = e => {
       const transactions = parseCSV(e.target.result);
       setUploads(prev => ({ ...prev, [accountId]: { fileName: file.name, transactions } }));
+      track("csv_upload", null, { transactions: transactions.length });
     };
     reader.readAsText(file, "UTF-8");
   };
@@ -457,6 +478,7 @@ export default function App() {
     updateConvMessages(activeConvId, newMessages);
     setAiInput("");
     setAiLoading(true);
+    track("chat_message", text.slice(0, 200));
 
     const ctx = buildContext();
     const systemPrompt = `Du er Holger, en erfaren dansk privatøkonomisk coach.
@@ -599,6 +621,7 @@ SAMTALEREGLER:
             setUploads(ups);
             setActiveAccount("all");
             setStep("app");
+            track("session_start", null, { accounts: Object.keys(ups).length });
           }} />
         </div>
       </div>
@@ -669,7 +692,7 @@ SAMTALEREGLER:
                   </div>
                 </div>
                 <div style={S.section}>
-                  <span style={S.sectionTitle}>🔥 Største poster</span>
+                  <span style={S.sectionTitle}>🔥 Største udgifter</span>
                   {byCategory.slice(0,3).map(c => <CatRow key={c.category} c={c} max={maxCatTotal} onClick={() => { setSelectedCategory(c.category); setView("category"); }} S={S} />)}
                 </div>
                 <div style={S.section}>
