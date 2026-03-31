@@ -686,7 +686,7 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
     const sub = isDark ? "#999" : "#666";
     return (
       <div style={S.shell}>
-        <div style={{ ...S.phone, display:"flex", flexDirection:"column" }}>
+        <div style={{ ...S.phone, display:"flex", flexDirection:"column", position:"relative", overflow: aiCategorizing ? "visible" : "hidden" }}>
           <div style={{ padding:"16px 20px 0", display:"flex", justifyContent:"flex-end", flexShrink:0 }}>
             <button onClick={toggleTheme} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer" }}>{isDark ? "☀️" : "🌙"}</button>
           </div>
@@ -745,7 +745,7 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
   if (step === "setup") {
     return (
       <div style={S.shell}>
-        <div style={{ ...S.phone, display:"flex", flexDirection:"column" }}>
+        <div style={{ ...S.phone, display:"flex", flexDirection:"column", position:"relative", overflow: aiCategorizing ? "visible" : "hidden" }}>
           <div style={{ padding:"20px 20px 0", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
             <h2 style={{ margin:0, fontSize:22, fontWeight:800, color: isDark ? "#fff" : "#111" }}>Økonom</h2>
             <button onClick={toggleTheme} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer" }}>{isDark ? "☀️" : "🌙"}</button>
@@ -760,39 +760,7 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
   if (step === "upload") {
     return (
       <div style={S.shell}>
-        <div style={{ ...S.phone, display:"flex", flexDirection:"column" }}>
-
-          {/* AI CATEGORIZING LOADING SCREEN */}
-          {aiCategorizing && (
-            <div style={{ position:"absolute", inset:0, background: isDark ? "rgba(10,10,20,0.97)" : "rgba(255,255,255,0.97)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:200, gap:20, padding:32, borderRadius: "inherit" }}>
-              <div style={{ fontSize:64 }}>👴🏼</div>
-              <div style={{ fontSize:18, fontWeight:700, color: isDark ? "#fff" : "#111", textAlign:"center" }}>Holger analyserer dine transaktioner</div>
-              <div style={{ fontSize:13, color: isDark ? "#888" : "#666", textAlign:"center", lineHeight:1.6 }}>
-                Jeg kategoriserer dine posteringer intelligent,<br/>så du får det bedste overblik.
-              </div>
-              {/* Progress bar */}
-              <div style={{ width:"100%", maxWidth:280 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-                  <span style={{ fontSize:12, color: isDark ? "#888" : "#999" }}>Kategoriserer...</span>
-                  <span style={{ fontSize:12, color:"#9333ea", fontWeight:600 }}>
-                    {categorizingProgress.total > 0 ? Math.round((categorizingProgress.done / categorizingProgress.total) * 100) : 0}%
-                  </span>
-                </div>
-                <div style={{ height:8, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)", borderRadius:4, overflow:"hidden" }}>
-                  <div style={{ height:"100%", borderRadius:4, background:"linear-gradient(90deg,#8b2fc9,#e040fb)", transition:"width 0.4s ease", width: (categorizingProgress.total > 0 ? (categorizingProgress.done / categorizingProgress.total) * 100 : 10) + "%" }} />
-                </div>
-                <div style={{ fontSize:11, color: isDark ? "#555" : "#bbb", marginTop:8, textAlign:"center" }}>
-                  {categorizingProgress.done} af {categorizingProgress.total} transaktioner behandlet
-                </div>
-              </div>
-              {/* Animated dots */}
-              <div style={{ display:"flex", gap:8 }}>
-                {[0,1,2].map(i => (
-                  <div key={i} style={{ width:8, height:8, borderRadius:"50%", background:"#9333ea", opacity: 0.3 + i * 0.35, animation:"pulse 1s infinite" }} />
-                ))}
-              </div>
-            </div>
-          )}
+        <div style={{ ...S.phone, display:"flex", flexDirection:"column", position:"relative", overflow: aiCategorizing ? "visible" : "hidden" }}>
 
           <div style={{ padding:"20px 20px 0", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
             <button onClick={() => setStep("setup")} style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border:"none", borderRadius:10, width:32, height:32, cursor:"pointer", color: isDark ? "#fff" : "#333" }}>←</button>
