@@ -1012,7 +1012,7 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
                 </div>
               )}
               {/* Generate plan button - shown when Holger has given savings advice */}
-              {aiMessages.length >= 2 && (
+              {aiMessages.length >= 2 && (savingsPlan || aiMessages.some(m => m.role === "assistant" && (m.content.toLowerCase().includes("opsparing") || m.content.toLowerCase().includes("spare") || m.content.toLowerCase().includes("spar ")))) && (
                 <div style={{ padding:"8px 14px 0", flexShrink:0 }}>
                   <button
                     onClick={() => {
