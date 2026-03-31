@@ -387,10 +387,9 @@ function CSVUpload({ accounts, onComplete, isDark }) {
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:14, fontWeight:700, color:fg }}>{label}</div>
                 {uploaded ? (
-                  {uploaded.aiProcessing
-                ? <div style={{ fontSize:12, color:"#c084fc", marginTop:2 }}>✨ AI kategoriserer... · {uploaded.transactions.length} transaktioner</div>
-                : <div style={{ fontSize:12, color:"#4CAF50", marginTop:2 }}>✓ {uploaded.fileName} · {uploaded.transactions.length} transaktioner</div>
-              }
+                  uploaded.aiProcessing
+                    ? <div style={{ fontSize:12, color:"#c084fc", marginTop:2 }}>✨ AI kategoriserer... · {uploaded.transactions.length} transaktioner</div>
+                    : <div style={{ fontSize:12, color:"#4CAF50", marginTop:2 }}>✓ {uploaded.fileName} · {uploaded.transactions.length} transaktioner</div>
                 ) : (
                   <div style={{ fontSize:12, color:sub, marginTop:2 }}>Tryk eller træk CSV-fil hertil</div>
                 )}
