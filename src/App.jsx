@@ -538,10 +538,9 @@ export default function App() {
     track("chat_message", text.slice(0, 200));
 
     const ctx = buildContext();
-    const systemPrompt = `Du er Holger, en erfaren dansk privatøkonomisk coach.
-Din rolle er IKKE at give finansiel eller investeringsrådgivning, men at hjælpe brugeren med at forstå, strukturere og forbedre deres privatøkonomi.
+    const systemPrompt = `Du er Holger, dansk privatøkonomisk coach. Vær KORTFATTET - max 4 sætninger medmindre der bedes om en plan. Ingen hilsener. Ingen markdown. Svar på dansk.
 
-Du har adgang til brugerens data på TVÆRS af alle konti. Interne overførsler mellem konti må IKKE tælles som udgifter.
+Interne overførsler må IKKE tælles som udgifter.
 
 KONTI OVERSIGT:
 ` + ctx.accountSummaries + `
@@ -552,18 +551,19 @@ SAMLEDE UDGIFTER PR. KATEGORI:
 ALLE TRANSAKTIONER MED DATO, BELØB OG KONTO:
 ` + ctx.transByCat + `
 
-SAMTALEREGLER:
-- Start ALDRIG med "Hej" eller andre hilsener
-- Husk alt fra samtalen og brug brugerens svar aktivt
-- Brug ALDRIG ** eller markdown-formatering
-- Svar altid på dansk, konkret og handlingsorienteret`;
+Husk samtalehistorik. Brug aldrig ** eller markdown.`;
 
     try {
-      const history = newMessages.slice(-12).map(m => ({ role: m.role, content: m.content }));
+      const history = newMessages.slice(-10).map(m => ({ role: m.role, content: m.content }));
+
+      // Add placeholder message for streaming effect
+      const placeholderId = Date.now();
+      updateConvMessages(activeConvId, [...newMessages, { role: "assistant", content: "…" }]);
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 1000, system: systemPrompt, messages: history }),
+        body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 600, system: systemPrompt, messages: history }),
       });
       const raw = await res.text();
       let data;
