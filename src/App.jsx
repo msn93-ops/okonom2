@@ -381,13 +381,12 @@ function CSVUpload({ accounts, isDark, onComplete, onFileLoad }) {
         const isDragging = draggingId === acc.id;
 
         return (
-          <div key={acc.id}
-            style={{ border: "2px dashed " + (isDragging ? "#e040fb" : (uploaded ? "#4CAF50" : "rgba(139,47,201,0.4)")), borderRadius:16, padding:"18px 16px", background: uploaded ? "rgba(76,175,80,0.05)" : (isDragging ? "rgba(224,64,251,0.08)" : "rgba(139,47,201,0.04)"), cursor:"pointer", transition:"all 0.2s" }}
+          <label key={acc.id} htmlFor={"csv-" + acc.id}
+            style={{ border: "2px dashed " + (isDragging ? "#e040fb" : (uploaded ? "#4CAF50" : "rgba(139,47,201,0.4)")), borderRadius:16, padding:"18px 16px", background: uploaded ? "rgba(76,175,80,0.05)" : (isDragging ? "rgba(224,64,251,0.08)" : "rgba(139,47,201,0.04)"), cursor:"pointer", transition:"all 0.2s", display:"block" }}
             onDragOver={e => { e.preventDefault(); setDraggingId(acc.id); }}
             onDragLeave={() => setDraggingId(null)}
-            onDrop={e => { e.preventDefault(); setDraggingId(null); handleFile(acc.id, e.dataTransfer.files[0]); }}
-            onClick={() => document.getElementById("csv-" + acc.id).click()}>
-            <input id={"csv-" + acc.id} type="file" accept=".csv,.txt" style={{ display:"none" }} onClick={e => e.stopPropagation()} onChange={e => handleFile(acc.id, e.target.files[0])} />
+            onDrop={e => { e.preventDefault(); setDraggingId(null); handleFile(acc.id, e.dataTransfer.files[0]); }}>
+            <input id={"csv-" + acc.id} type="file" accept=".csv,.txt" style={{ display:"none" }} onChange={e => handleFile(acc.id, e.target.files[0])} />
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
               <span style={{ fontSize:28 }}>{type?.icon}</span>
               <div style={{ flex:1 }}>
@@ -402,7 +401,7 @@ function CSVUpload({ accounts, isDark, onComplete, onFileLoad }) {
               {uploaded && !uploaded.aiProcessing && <span style={{ fontSize:20 }}>✅</span>}
               {uploaded && uploaded.aiProcessing && <span style={{ fontSize:20 }}>⏳</span>}
             </div>
-          </div>
+          </label>
         );
       })}
 
