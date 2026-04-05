@@ -74,6 +74,10 @@ function cleanDescription(desc) {
     .trim();
 }
 
+function isMobilePayPerson(desc) {
+  return /MobilePay\s+[A-ZÆØÅ][a-zæøå]/i.test(desc) && !/køb|MobilePay MobilePay/i.test(desc);
+}
+
 function categorize(description) {
   if (isMobilePayPerson(description)) {
     return { category: "Overførsler", icon: "🔄", color: "#6B7280" };
