@@ -29,38 +29,35 @@ const ACCOUNT_TYPES = [
 ];
 
 const CATEGORY_RULES = [
+  // Mad & Restauranter FIRST — so cafe/espresso matches before kiosk
+  { keywords: ["restaurant","cafe ","café","vinstue","espresso","coffee","starbucks","baresso","lagkagehuset","kebab","thai","wok","tapas","brunch","smørrebrød","vivaldi","fisketorvet","me and me","sushi","pizza","burger","mcdonalds","kfc","subway","takeaway","bistro","grill","brasserie","bodega"], category: "Mad & Restauranter", icon: "🍽️", color: "#E91E63" },
   // Dagligvarer
-  { keywords: ["netto","fakta","rema 1000","rema1000","aldi","lidl","meny","irma","bilka","føtex","kvickly","superbrugsen","dagligbrugsen","spar marked","coop","dagligvarer","mad og","kolonial","jem & fix","jem&fix","normal aps"], category: "Dagligvarer", icon: "🛒", color: "#4CAF50" },
-  // Mad & Restauranter (before Kiosk so cafe/espresso matches correctly)
-  { keywords: ["restaurant","cafe ","café","pizza","burger","mcdonalds","kfc","subway","sushi","takeaway","bistro","grill","vinstue","espresso","coffee","starbucks","baresso","joe &","lagkagehuset","born & brød","mad bar","foodie","kebab","thai","indian","chinese","wok","tapas","brunch","smørrebrød","fisketorvet","me and me","vivaldi"], category: "Mad & Restauranter", icon: "🍽️", color: "#E91E63" },
+  { keywords: ["netto","fakta","rema 1000","rema1000","aldi","lidl","meny","irma","bilka","føtex","kvickly","superbrugsen","dagligbrugsen","coop","jem & fix","jem&fix","normal aps"], category: "Dagligvarer", icon: "🛒", color: "#4CAF50" },
   // Kiosk & Benzin
-  { keywords: ["seven eleven","7-eleven","q8","shell","circle k","ok benzin","esso","st1","uno-x","go'on","benzin","tankstation"], category: "Kiosk & Benzin", icon: "⛽", color: "#FF9800" },
+  { keywords: ["seven eleven","7-eleven","q8","shell","circle k","ok benzin","esso","st1","uno-x","benzin","tankstation"], category: "Kiosk & Benzin", icon: "⛽", color: "#FF9800" },
   // Streaming & Abonnementer
-  { keywords: ["netflix","spotify","hbo","disney","viaplay","youtube","apple music","deezer","abonnement","subscription","claude.ai","anthropic","google one","playstation","xbox","adobe","dropbox","icloud","tidal","mofibo","storytel","visma","logbuy"], category: "Streaming & Abonnementer", icon: "📺", color: "#9C27B0" },
+  { keywords: ["netflix","spotify","hbo","disney","viaplay","youtube","apple music","deezer","claude.ai","anthropic","google one","playstation","xbox","adobe","dropbox","icloud","tidal","mofibo","storytel","visma","logbuy","tv2","tv 2","abonnement","subscription"], category: "Streaming & Abonnementer", icon: "📺", color: "#9C27B0" },
   // Transport
-  { keywords: ["dsb","rejsekort","movia","metro","tog ","fly","airport","lufthavn","taxa","uber","bolt","flixbus","abildskou","molslinjen","færge","parkering","parking","brobizz","atpcard"], category: "Transport", icon: "🚌", color: "#2196F3" },
+  { keywords: ["dsb","rejsekort","movia","metro","uber","bolt","flixbus","molslinjen","færge","parkering","parking","brobizz","taxa","lufthavn","airport","abildskou","atpcard"], category: "Transport", icon: "🚌", color: "#2196F3" },
   // Bolig & Regninger
-  { keywords: ["husleje","boligindskud","el ","elregning","vand ","varme","forsikring","ejendom","tryg ","codan","alka ","topdanmark","grundejer","fjernvarme","renovation","almenbrand","fællesudgift","homeowner"], category: "Bolig & Regninger", icon: "🏠", color: "#795548" },
+  { keywords: ["husleje","boligindskud","el ","elregning","vand ","varme","forsikring","ejendom","tryg ","codan","alka ","topdanmark","grundejer","fjernvarme","fællesudgift","almenbrand"], category: "Bolig & Regninger", icon: "🏠", color: "#795548" },
   // Sundhed & Fitness
-  { keywords: ["apotek","læge","hospital","tandlæge","medicin","fitness","gym","træning","sats ","crossfit","health","wellness","optiker","fysio","kiroprak","hvidovresport","sport.dk","running"], category: "Sundhed & Fitness", icon: "💊", color: "#00BCD4" },
+  { keywords: ["apotek","læge","hospital","tandlæge","medicin","fitness","gym","træning","sats ","crossfit","health","optiker","fysio","kiroprak","hvidovresport","sport24","eventyrsport","running","løbesko","sportmaster","intersport"], category: "Sundhed & Fitness", icon: "💊", color: "#00BCD4" },
   // Tøj & Mode
-  { keywords: ["zalando","h&m","zara","tøj","sko ","skobutik","mode","matas","sephora","søstrene grene","tiger","flying tiger","dressmann","jack & jones","vero moda","only ","bestseller","magasin","illum","skechers","nike ","adidas ","sp bahne","bahne"], category: "Tøj & Mode", icon: "👗", color: "#FF5722" },
+  { keywords: ["zalando","h&m","zara","matas","sephora","søstrene grene","tiger","dressmann","jack & jones","vero moda","only ","bestseller","magasin","illum","skechers","nike ","adidas ","sp bahne","bahne","ganni","neye","boozt","monki","weekday","arket","cos ","& other stories","pieces","vila ","selected","noisy may"], category: "Tøj & Mode", icon: "👗", color: "#FF5722" },
   // Shopping & Elektronik
-  { keywords: ["amazon","ebay","coolshop","proshop","elgiganten","power ","expert ","imerco","søstrene","bog & ide","saxo","thansen","t.hansen","bauhaus","silvan","stark ","optimera","clasohlson","clas ohlson","pop mart","kvickly non"], category: "Shopping & Elektronik", icon: "🛍️", color: "#607D8B" },
+  { keywords: ["amazon","ebay","coolshop","proshop","elgiganten","power ","expert ","imerco","saxo","thansen","bauhaus","silvan","stark ","clasohlson","pop mart","kvickly non","bog & idé","bog&idé"], category: "Shopping & Elektronik", icon: "🛍️", color: "#607D8B" },
   // Spil & Betting
-  { keywords: ["bet365","danskespil","lotteri","jackpot","unibet","betsson","mrgreen","mr green","888casino","casino","poker","bingo","gambling"], category: "Spil & Betting", icon: "🎲", color: "#F59E0B" },
+  { keywords: ["bet365","danskespil","lotteri","unibet","betsson","mrgreen","mr green","888casino","casino","poker","bingo","gambling"], category: "Spil & Betting", icon: "🎲", color: "#F59E0B" },
   // Oplevelser & Fritid
-  { keywords: ["biograf","kino","teater","museum","zoo","tivoli","legoland","aquadome","escape room","bowling","paintball","koncert","festival","ticketmaster","billetlugen","rundetaarn","illustion","illusions"], category: "Oplevelser & Fritid", icon: "🎭", color: "#8B5CF6" },
+  { keywords: ["airbnb","booking.com","hotels.com","biograf","kino","teater","museum","zoo","tivoli","legoland","escape room","bowling","koncert","festival","ticketmaster","billetlugen","rundetaarn","illusions","paintball"], category: "Oplevelser & Fritid", icon: "🎭", color: "#8B5CF6" },
   // Lønindtægt
-  { keywords: ["løn","salary","lønudbetaling","lønoverførsel","udbetaling løn"], category: "Lønindtægt", icon: "💵", color: "#22c55e" },
-  // MobilePay person-overførsler (modtaget)
-  { keywords: ["mobilepay jonas","mobilepay sofie","mobilepay david","mobilepay caroline","mobilepay nikolaj","mobilepay maryam"], category: "Modtaget MobilePay", icon: "📲", color: "#10B981" },
-  // Opsparing & overførsler
-  { keywords: ["til egen opsparing","til fælles budget","opsparing","fiskeopsparing","overf. til","intern overf"], category: "Opsparing & Overførsler", icon: "🔄", color: "#6B7280" },
+  { keywords: ["løn","lønudbetaling","lønoverførsel","salary","udbetaling løn"], category: "Lønindtægt", icon: "💵", color: "#22c55e" },
+  // Opsparing & Overførsler
+  { keywords: ["til egen opsparing","til fælles budget","fiskeopsparing","opsparing"], category: "Opsparing & Overførsler", icon: "🔄", color: "#6B7280" },
   // Kontanter
-  { keywords: ["hæveautomat","kontanthævning","atm"], category: "Kontanter", icon: "💵", color: "#9E9E9E" },
+  { keywords: ["hæveautomat","kontanthævning","atm "], category: "Kontanter", icon: "💵", color: "#9E9E9E" },
 ];
-
 // Clean transaction description before categorizing
 function cleanDescription(desc) {
   return (desc || "")
