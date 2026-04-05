@@ -387,7 +387,7 @@ function CSVUpload({ accounts, isDark, onComplete, onFileLoad }) {
             onDragLeave={() => setDraggingId(null)}
             onDrop={e => { e.preventDefault(); setDraggingId(null); handleFile(acc.id, e.dataTransfer.files[0]); }}
             onClick={() => document.getElementById("csv-" + acc.id).click()}>
-            <input id={"csv-" + acc.id} type="file" accept=".csv,.txt" style={{ display:"none" }} onChange={e => handleFile(acc.id, e.target.files[0])} />
+            <input id={"csv-" + acc.id} type="file" accept=".csv,.txt" style={{ display:"none" }} onClick={e => e.stopPropagation()} onChange={e => handleFile(acc.id, e.target.files[0])} />
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
               <span style={{ fontSize:28 }}>{type?.icon}</span>
               <div style={{ flex:1 }}>
