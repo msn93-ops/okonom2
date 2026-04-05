@@ -57,7 +57,7 @@ const CATEGORY_RULES = [
   { keywords: ["til egen opsparing","til fælles budget","fiskeopsparing","opsparing"], category: "Opsparing & Overførsler", icon: "🔄", color: "#6B7280" },
   // Kontanter
   { keywords: ["hæveautomat","kontanthævning","pengeautomat","atm "], category: "Kontanter", icon: "💵", color: "#9E9E9E" },
-];port { useState, useCallback, useMemo, useEffect, useRef } from "react";
+];
 
 // Generate anonymous user ID
 function getUserId() {
