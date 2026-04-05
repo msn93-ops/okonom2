@@ -29,6 +29,65 @@ const ACCOUNT_TYPES = [
 ];
 
 const CATEGORY_RULES = [
+  // Mad & Restauranter FIRST
+  { keywords: ["restaurant","cafe ","ruby,","ruby ","the dubliner","café","vinstue","espresso","coffee","starbucks","baresso","lagkagehuset","kebab","thai","wok","tapas","brunch","smørrebrød","vivaldi","fisketorvet","me and me","sushi","pizza","burger","mcdonalds","kfc","subway","takeaway","bistro","grill","brasserie","bodega","bageri","enlil","arkadens isbod","petersens","poelser","spiseriet","palmehaven","taste of fortune","ved stranden","the dubliner","rosengaarden","whisky in the jar","fleisch","marv & ben","mikkeller","logen","lord nelson","bruun & stengade","tasteat","zoku","wolt","wolt ","bread & co","gatsby","pigi","pierogarnia","zjedz","zabka","sjofolket"], category: "Mad & Restauranter", icon: "🍽️", color: "#E91E63" },
+  // Dagligvarer
+  { keywords: ["netto","fakta","rema 1000","rema1000","aldi","lidl","meny","irma","bilka","føtex","kvickly","superbrugsen","dagligbrugsen","coop","jem & fix","jem&fix","normal aps","nemlig.com","willys","teglholm marked"], category: "Dagligvarer", icon: "🛒", color: "#4CAF50" },
+  // Kiosk & Benzin
+  { keywords: ["seven eleven","7-eleven","q8","shell","circle k","ok benzin","esso","st1","uno-x","benzin","tankstation","select service par"], category: "Kiosk & Benzin", icon: "⛽", color: "#FF9800" },
+  // Streaming & Abonnementer
+  { keywords: ["netflix","spotify","hbo","disney","viaplay","youtube","apple music","deezer","claude.ai","anthropic","google one","playstation","xbox","adobe","dropbox","icloud","tidal","mofibo","storytel","visma","logbuy","tv2","tv 2","abonnement","subscription","blockbuster","openai","chatgpt","podimo","paddle.net","n8n"], category: "Streaming & Abonnementer", icon: "📺", color: "#9C27B0" },
+  // Transport
+  { keywords: ["dsb","rejsekort","movia","metro","uber","bolt","flixbus","molslinjen","færge","parkering","parking","brobizz","taxa","lufthavn","airport","abildskou","atpcard","dantaxi","dot app","easypark","easy park","rejsebillet","mob.pay","kk.mitpas","ssp emirates"], category: "Transport", icon: "🚌", color: "#2196F3" },
+  // Bolig & Regninger
+  { keywords: ["husleje","boligindskud","el ","elregning","vand ","varme","forsikring","ejendom","tryg ","codan","alka ","topdanmark","grundejer","fjernvarme","fællesudgift","almenbrand","gebyr","rente af","shipmondo","relatel","til vvs","enhavns kommune","lauridsensmoebler","moebelkompagniet"], category: "Bolig & Regninger", icon: "🏠", color: "#795548" },
+  // Sundhed & Fitness
+  { keywords: ["apotek","apteka","læge","hospital","tandlæge","medicin","fitness","gym","træning","sats ","crossfit","health","optiker","fysio","kiroprak","hvidovresport","sport24","hair & beauty","sport 24","eventyrsport","running","løbesko","sportmaster","intersport","unisport","bodylab","drywear"], category: "Sundhed & Fitness", icon: "💊", color: "#00BCD4" },
+  // Tøj & Mode
+  { keywords: ["zalando","h&m","zara","matas","sephora","søstrene grene","tiger","dressmann","jack & jones","vero moda","only ","bestseller","magasin","illum","skechers","nike ","adidas ","sp bahne","sp bono","bahne","ganni","neye","boozt","monki","weekday","arket","cos ","pieces","vila ","selected","noisy may","about you","adidasdk","jwlry","kids-world","kjær & sommerfeldt","sprd.net","temu"], category: "Tøj & Mode", icon: "👗", color: "#FF5722" },
+  // Shopping & Elektronik
+  { keywords: ["amazon","ebay","coolshop","proshop","elgiganten","power.dk","power ","expert ","imerco","saxo","thansen","bauhaus","silvan","stark ","clasohlson","pop mart","komplett","fiskegrej","bog & idé","bog&idé","normal a/s","kystfisken","ifiske","sharewine","vivino","sommeliervine","vivino","vin ","vin ","whisky"], category: "Shopping & Elektronik", icon: "🛍️", color: "#607D8B" },
+  // Spil & Betting
+  { keywords: ["bet365","danskespil","danske spil","lotteri","unibet","betsson","mrgreen","mr green","888casino","888*","casino","poker","bingo","gambling","buckaroo","game over","spilnu","spionspil","nordicbet","tsg platforms"], category: "Spil & Betting", icon: "🎲", color: "#F59E0B" },
+  // Oplevelser & Fritid
+  { keywords: ["airbnb","booking.com","hotels.com","biograf","kino","teater","museum","zoo","tivoli","legoland","escape room","bowling","koncert","festival","ticketmaster","billetlugen","rundetaarn","illusions","paintball","getyourguide","billetten","aire ancient","camping","rødovre kulturhus","dba danser","loge","udgift loge","udlæg loge","til fisketur","svea","sjofolket"], category: "Oplevelser & Fritid", icon: "🎭", color: "#8B5CF6" },
+  // Lønindtægt
+  { keywords: ["fk-feriepenge","feriepenge","gevinst","medarbejderfordele","udbetaling","løn","lønudbetaling","lønoverførsel","salary"], category: "Lønindtægt", icon: "💵", color: "#22c55e" },
+  // Opsparing & Overførsler
+  { keywords: ["til egen opsparing","til fælles budget","fiskeopsparing","opsparing"], category: "Opsparing & Overførsler", icon: "🔄", color: "#6B7280" },
+  // Kontanter
+  { keywords: ["hæveautomat","kontanthævning","pengeautomat","atm "], category: "Kontanter", icon: "💵", color: "#9E9E9E" },
+];port { useState, useCallback, useMemo, useEffect, useRef } from "react";
+
+// Generate anonymous user ID
+function getUserId() {
+  let id = localStorage.getItem("okonom-uid");
+  if (!id) {
+    id = "u_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem("okonom-uid", id);
+  }
+  return id;
+}
+
+async function track(event_type, question = null, metadata = null) {
+  try {
+    await fetch("/api/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_type, user_id: getUserId(), question, metadata }),
+    });
+  } catch {}
+}
+
+const ACCOUNT_TYPES = [
+  { id: "loen", label: "Lønkonto", icon: "💰" },
+  { id: "opsparing", label: "Opsparingskonto", icon: "🏦" },
+  { id: "budget", label: "Budgetkonto", icon: "📊" },
+  { id: "faelles", label: "Fælles konto", icon: "👫" },
+  { id: "laan", label: "Lån", icon: "📋" },
+];
+
+const CATEGORY_RULES = [
   // Mad & Restauranter FIRST — so cafe/espresso matches before kiosk
   { keywords: ["restaurant","cafe ","café","vinstue","espresso","coffee","starbucks","baresso","lagkagehuset","kebab","thai","wok","tapas","brunch","smørrebrød","vivaldi","fisketorvet","me and me","sushi","pizza","burger","mcdonalds","kfc","subway","takeaway","bistro","grill","brasserie","bodega"], category: "Mad & Restauranter", icon: "🍽️", color: "#E91E63" },
   // Dagligvarer
@@ -74,11 +133,18 @@ function cleanDescription(desc) {
 }
 
 function categorize(description) {
+  if (isMobilePayPerson(description)) {
+    return { category: "Overførsler", icon: "🔄", color: "#6B7280" };
+  }
   const cleaned = cleanDescription(description);
   const lower = cleaned.toLowerCase();
   for (const rule of CATEGORY_RULES) {
     if (rule.keywords.some(k => lower.includes(k)))
       return { category: rule.category, icon: rule.icon, color: rule.color };
+  }
+  // Generic "Overførsel" 
+  if (/^overf/i.test(description.trim()) || /^fra\d/i.test(description.trim()) || /^forbrug på/i.test(description.trim())) {
+    return { category: "Overførsler", icon: "🔄", color: "#6B7280" };
   }
   return { category: "Andet", icon: "📌", color: "#78909C" };
 }
