@@ -775,8 +775,12 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
                   onDone(improved);
                   setAiCategorizing(false);
                 }).catch(() => {
+                  onDone(transactions);
                   setAiCategorizing(false);
                 });
+              } else {
+                // No uncategorized transactions — mark as done immediately
+                onDone(transactions);
               }
             }}
             onComplete={ups => {
