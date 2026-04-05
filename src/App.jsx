@@ -624,6 +624,8 @@ export default function App() {
     const ctx = buildContext();
     const systemPrompt = `Du er Holger, dansk privatøkonomisk coach. Vær KORTFATTET - max 4 sætninger medmindre der bedes om en plan. Ingen hilsener. Ingen markdown. Svar på dansk.
 
+HARD REGEL: Du må under INGEN omstændigheder vejlede om investeringer, aktier, fonde, ETF'er, kryptovaluta eller andre finansielle produkter. Hvis nogen spørger, skal du afvise høfligt og tilbyde at hjælpe med budget og opsparing i stedet.
+
 Interne overførsler må IKKE tælles som udgifter.
 
 KONTI OVERSIGT:
@@ -639,10 +641,6 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
 
     try {
       const history = newMessages.slice(-10).map(m => ({ role: m.role, content: m.content }));
-
-      // Add placeholder message for streaming effect
-      const placeholderId = Date.now();
-      updateConvMessages(activeConvId, [...newMessages, { role: "assistant", content: "…" }]);
 
       const res = await fetch("/api/chat", {
         method: "POST",
