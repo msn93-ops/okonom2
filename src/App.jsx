@@ -54,7 +54,7 @@ const CATEGORY_RULES = [
   // Lønindtægt
   { keywords: ["fk-feriepenge","feriepenge","gevinst","medarbejderfordele","udbetaling","løn","lønudbetaling","lønoverførsel","salary"], category: "Lønindtægt", icon: "💵", color: "#22c55e" },
   // Opsparing & Overførsler
-  { keywords: ["til egen opsparing","til fælles budget","fiskeopsparing","opsparing"], category: "Opsparing & Overførsler", icon: "🔄", color: "#6B7280" },
+  { keywords: ["til egen opsparing","til fælles budget","fiskeopsparing","opsparing","overførsler","overf. til","intern overf"], category: "Opsparing & Overførsler", icon: "🔄", color: "#6B7280" },
   // Kontanter
   { keywords: ["hæveautomat","kontanthævning","pengeautomat","atm "], category: "Kontanter", icon: "💵", color: "#9E9E9E" },
 ];
@@ -80,7 +80,7 @@ function isMobilePayPerson(desc) {
 
 function categorize(description) {
   if (isMobilePayPerson(description)) {
-    return { category: "Overførsler", icon: "🔄", color: "#6B7280" };
+    return { category: "Opsparing & Overførsler", icon: "🔄", color: "#6B7280" };
   }
   const cleaned = cleanDescription(description);
   const lower = cleaned.toLowerCase();
