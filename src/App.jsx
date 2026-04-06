@@ -560,12 +560,13 @@ export default function App() {
       });
       const data = await r.json();
       if (data.error) { setAuthError(data.error); return false; }
+      if (!data.session) { setAuthError("Noget gik galt — prøv igen"); return false; }
       localStorage.setItem("okonom-session", data.session);
-      localStorage.setItem("okonom-refresh", data.refresh);
-      localStorage.setItem("okonom-email", authEmail || userEmail);
+      if (data.refresh) localStorage.setItem("okonom-refresh", data.refresh);
+      localStorage.setItem("okonom-email", authEmail || userEmail || "");
       setSession(data.session);
-      setRefreshToken(data.refresh);
-      setUserEmail(authEmail || userEmail);
+      setRefreshToken(data.refresh || null);
+      setUserEmail(authEmail || userEmail || "");
       return data.session;
     } catch (e) {
       setAuthError("Netværksfejl — prøv igen");
@@ -603,10 +604,12 @@ export default function App() {
   };
 
   const loadUserData = async (token) => {
+    const t = token || localStorage.getItem("okonom-session");
+    if (!t || t === "undefined" || t === "null") { setStep("setup"); return; }
     setDataLoading(true);
     try {
       const r = await fetch("/api/userdata", {
-        headers: { "Authorization": "Bearer " + token }
+        headers: { "Authorization": "Bearer " + t }
       });
       const data = await r.json();
       if (data.accounts?.length > 0 && data.transactions?.length > 0) {
@@ -618,7 +621,7 @@ export default function App() {
           const txns = (t.transactions || []).map(tx => ({
             ...tx,
             date: tx.date ? new Date(tx.date) : null,
-            isIncome: tx.amount > 0,
+            isIncome: typeof tx.isIncome === "boolean" ? tx.isIncome : tx.amount > 0,
           }));
           savedUploads[t.account_id] = { fileName: "gemt", transactions: txns, done: true };
         });
@@ -1094,12 +1097,22 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
             setStep("app");
             track("session_start", null, { accounts: Object.keys(ups).length });
             // Save to cloud if logged in
-            if (session) {
+            const currentSession = localStorage.getItem("okonom-session");
+            if (currentSession && currentSession !== "undefined" && currentSession !== "null") {
               const accountData = accounts.filter(a => ups[a.id]).map(a => {
                 const type = ACCOUNT_TYPES.find(t => t.id === a.type);
-                return { account_id: String(a.id), account_label: a.name || type?.label || "Konto", account_type: a.type, transactions: ups[a.id].transactions };
+                return {
+                  account_id: String(a.id),
+                  account_label: a.name || type?.label || "Konto",
+                  account_type: a.type,
+                  transactions: ups[a.id].transactions,
+                };
               });
-              fetch("/api/userdata", { method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+session}, body: JSON.stringify({ accounts, accountData }) }).catch(()=>{});
+              fetch("/api/userdata", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + currentSession },
+                body: JSON.stringify({ accounts, accountData }),
+              }).then(r => r.json()).then(d => console.log("Saved:", d)).catch(e => console.error("Save error:", e));
             }
           }} />
         </div>
