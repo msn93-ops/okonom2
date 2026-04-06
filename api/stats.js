@@ -26,6 +26,7 @@ export default async function handler(req, res) {
   const totalChats = events.filter(e => e.event_type === 'chat_message').length;
   const totalUploads = events.filter(e => e.event_type === 'csv_upload').length;
   const totalSessions = events.filter(e => e.event_type === 'session_start').length;
+  const totalSignups = events.filter(e => e.event_type === 'user_signup').length;
 
   // Top questions
   const questions = events
@@ -53,7 +54,7 @@ export default async function handler(req, res) {
     .map(([date, users]) => ({ date, users: users.size }));
 
   return res.status(200).json({
-    summary: { uniqueUsers, totalChats, totalUploads, totalSessions },
+    summary: { uniqueUsers, totalChats, totalUploads, totalSessions, totalSignups },
     topQuestions,
     dailyUsers,
     recentEvents: events.slice(0, 50),
