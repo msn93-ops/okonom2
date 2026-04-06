@@ -448,6 +448,8 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [authConfirmPassword, setAuthConfirmPassword] = useState("");
+  const [privacyChecked, setPrivacyChecked] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [session, setSession] = useState(() => localStorage.getItem("okonom-session") || null);
   const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem("okonom-refresh") || null);
@@ -958,15 +960,36 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
               {authError && <div style={{ fontSize:13, color:"#ef4444", textAlign:"center" }}>{authError}</div>}
             </div>
 
+            {!isLogin && (
+              <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+                <input
+                  type="checkbox"
+                  id="privacy-check"
+                  checked={privacyChecked}
+                  onChange={e => setPrivacyChecked(e.target.checked)}
+                  style={{ marginTop:2, accentColor:"#9333ea", width:16, height:16, flexShrink:0, cursor:"pointer" }}
+                />
+                <label htmlFor="privacy-check" style={{ fontSize:12, color:sub, lineHeight:1.6, cursor:"pointer" }}>
+                  Jeg accepterer{" "}
+                  <button
+                    onClick={e => { e.preventDefault(); setShowPrivacyModal(true); }}
+                    style={{ background:"none", border:"none", color:"#9333ea", fontSize:12, cursor:"pointer", padding:0, textDecoration:"underline" }}>
+                    privatlivspolitikken
+                  </button>
+                  {" "}og giver samtykke til at mine finansielle data behandles til formålet om personlig økonomianalyse.
+                </label>
+              </div>
+            )}
+
             <button
               onClick={isLogin ? login : signup}
-              disabled={authLoading || !authEmail || !authPassword}
-              style={{ background: authLoading || !authEmail || !authPassword ? "rgba(128,128,128,0.3)" : "linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:14, padding:"16px", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+              disabled={authLoading || !authEmail || !authPassword || (!isLogin && !privacyChecked)}
+              style={{ background: authLoading || !authEmail || !authPassword || (!isLogin && !privacyChecked) ? "rgba(128,128,128,0.3)" : "linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:14, padding:"16px", color:"#fff", fontSize:15, fontWeight:700, cursor: (!isLogin && !privacyChecked) ? "default" : "pointer" }}>
               {authLoading ? "Vent..." : isLogin ? "Log ind" : "Opret konto"}
             </button>
 
             <div style={{ textAlign:"center" }}>
-              <button onClick={() => { setAuthView(isLogin ? "signup" : "login"); setAuthError(""); setAuthConfirmPassword(""); }}
+              <button onClick={() => { setAuthView(isLogin ? "signup" : "login"); setAuthError(""); setAuthConfirmPassword(""); setPrivacyChecked(false); }}
                 style={{ background:"none", border:"none", color:"#9333ea", fontSize:13, cursor:"pointer" }}>
                 {isLogin ? "Har du ikke en konto? Opret her" : "Har du allerede en konto? Log ind"}
               </button>
@@ -979,6 +1002,42 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
               </button>
             </div>
           </div>
+          {/* PRIVACY POLICY MODAL */}
+          {showPrivacyModal && (
+            <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"flex-end", zIndex:200 }} onClick={() => setShowPrivacyModal(false)}>
+              <div style={{ width:"100%", background: isDark ? "#1a1a2e" : "#fff", borderRadius:"24px 24px 0 0", padding:"24px 20px 40px", maxHeight:"80vh", overflowY:"auto", scrollbarWidth:"none" }} onClick={e => e.stopPropagation()}>
+                <div style={{ width:36, height:4, background:"rgba(128,128,128,0.3)", borderRadius:2, margin:"0 auto 16px" }} />
+                <h2 style={{ margin:"0 0 16px", fontSize:18, fontWeight:800, color: isDark ? "#fff" : "#111" }}>Privatlivspolitik</h2>
+                <p style={{ fontSize:12, color: isDark ? "#888" : "#777", marginBottom:16 }}>Sidst opdateret: april 2025</p>
+
+                {[
+                  ["1. Hvem vi er", "Økonom er en personlig finansiel analysetjeneste udviklet af Mads Skørp Nielsen. Tjenesten er ikke tilknyttet nogen finansiel institution og yder ikke investeringsrådgivning."],
+                  ["2. Hvilke data vi indsamler", "Vi indsamler den e-mailadresse du opretter konto med, samt de finansielle transaktionsdata du selv uploader fra dit kontoudtog (CSV-format). Vi indsamler desuden anonyme brugsdata såsom antal sessioner og chatbeskeder til statistisk brug."],
+                  ["3. Formål med behandlingen", "Dine finansielle data bruges udelukkende til at give dig et personligt overblik over din økonomi og til at drive AI-analyser via Holger. Data bruges aldrig til markedsføring, videresalg eller profilering."],
+                  ["4. Deling med tredjepart", "Dine transaktionsdata sendes til Anthropic (USA) når du stiller Holger spørgsmål. Anthropic anvender ikke disse data til træning af AI-modeller. Data opbevares i Supabase på europæiske servere (EU West)."],
+                  ["5. Dine rettigheder", "Du har ret til at få indsigt i, berigtige og slette dine data til enhver tid. Du kan slette din konto ved at kontakte os. Du har ret til at trække dit samtykke tilbage, hvilket medfører sletning af alle dine data."],
+                  ["6. Sikkerhed", "Adgangskoder hashes med bcrypt og gemmes aldrig i klartekst. Alle forbindelser er krypteret med SSL/TLS. Dine data er beskyttet med Row Level Security — ingen andre brugere kan tilgå dine data."],
+                  ["7. Opbevaring", "Dine data opbevares så længe din konto er aktiv. Ved sletning af konto fjernes alle tilknyttede data inden for 30 dage."],
+                  ["8. Kontakt", "Spørgsmål om privatlivspolitikken kan rettes til: madssnielsen93@gmail.com"],
+                ].map(([title, text]) => (
+                  <div key={title} style={{ marginBottom:16 }}>
+                    <div style={{ fontSize:14, fontWeight:700, color: isDark ? "#ddd" : "#222", marginBottom:4 }}>{title}</div>
+                    <div style={{ fontSize:13, color: isDark ? "#aaa" : "#555", lineHeight:1.7 }}>{text}</div>
+                  </div>
+                ))}
+
+                <button
+                  onClick={() => { setPrivacyChecked(true); setShowPrivacyModal(false); }}
+                  style={{ width:"100%", background:"linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:14, padding:"14px", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", marginTop:8 }}>
+                  Jeg accepterer privatlivspolitikken
+                </button>
+                <button onClick={() => setShowPrivacyModal(false)}
+                  style={{ width:"100%", background:"none", border:"none", color: isDark ? "#666" : "#999", fontSize:13, cursor:"pointer", marginTop:8 }}>
+                  Luk
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
