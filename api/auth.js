@@ -36,7 +36,19 @@ export default async function handler(req, res) {
         body: JSON.stringify({ id: data.user.id, accounts: [] }),
       });
     }
-    return res.status(200).json({ user: data.user, session: data.session });
+    // If no session (email confirmation enabled), auto-login to get session
+    let session = data.session;
+    let refresh = data.refresh_token;
+    if (!session && data.user) {
+      const loginRes = await fetch(`${base}/token?grant_type=password`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ email, password }),
+      });
+      const loginData = await loginRes.json();
+      session = loginData.access_token;
+      refresh = loginData.refresh_token;
+    }
+    return res.status(200).json({ user: data.user, session, refresh });
   }
 
   if (action === 'login') {
