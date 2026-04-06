@@ -442,7 +442,16 @@ function CSVUpload({ accounts, isDark, onComplete, onFileLoad }) {
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [step, setStep] = useState("intro"); // setup | upload | app
+  const [step, setStep] = useState("intro");
+  const [authView, setAuthView] = useState("login"); // login | signup
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [session, setSession] = useState(() => localStorage.getItem("okonom-session") || null);
+  const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem("okonom-refresh") || null);
+  const [userEmail, setUserEmail] = useState(() => localStorage.getItem("okonom-email") || null);
+  const [dataLoading, setDataLoading] = useState(false); // setup | upload | app
   const [accounts, setAccounts] = useState([]);
   const [uploads, setUploads] = useState({});
   const [activeAccount, setActiveAccount] = useState("all"); // "all" or account id
@@ -535,6 +544,115 @@ export default function App() {
     setIsDark(next);
     localStorage.setItem("okonom-theme", next ? "dark" : "light");
   };
+
+  // Auth functions
+  const authFetch = async (action, extra = {}) => {
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const r = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, email: authEmail, password: authPassword, ...extra }),
+      });
+      const data = await r.json();
+      if (data.error) { setAuthError(data.error); return false; }
+      localStorage.setItem("okonom-session", data.session);
+      localStorage.setItem("okonom-refresh", data.refresh);
+      localStorage.setItem("okonom-email", authEmail || userEmail);
+      setSession(data.session);
+      setRefreshToken(data.refresh);
+      setUserEmail(authEmail || userEmail);
+      return data.session;
+    } catch (e) {
+      setAuthError("Netværksfejl — prøv igen");
+      return false;
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const login = async () => {
+    const s = await authFetch("login");
+    if (s) { await loadUserData(s); }
+  };
+
+  const signup = async () => {
+    const s = await authFetch("signup");
+    if (s) setStep("setup");
+  };
+
+  const logout = () => {
+    localStorage.removeItem("okonom-session");
+    localStorage.removeItem("okonom-refresh");
+    localStorage.removeItem("okonom-email");
+    setSession(null); setRefreshToken(null); setUserEmail(null);
+    setUploads({}); setAccounts([]);
+    setStep("intro");
+  };
+
+  const loadUserData = async (token) => {
+    setDataLoading(true);
+    try {
+      const r = await fetch("/api/userdata", {
+        headers: { "Authorization": "Bearer " + token }
+      });
+      const data = await r.json();
+      if (data.accounts?.length > 0 && data.transactions?.length > 0) {
+        // Rebuild accounts and uploads from saved data
+        const savedAccounts = data.accounts;
+        const savedUploads = {};
+        data.transactions.forEach(t => {
+          // Dates need to be restored as Date objects
+          const txns = (t.transactions || []).map(tx => ({
+            ...tx,
+            date: tx.date ? new Date(tx.date) : null,
+            isIncome: tx.amount > 0,
+          }));
+          savedUploads[t.account_id] = { fileName: "gemt", transactions: txns, done: true };
+        });
+        setAccounts(savedAccounts);
+        setUploads(savedUploads);
+        setActiveAccount("all");
+        setStep("app");
+      } else {
+        setStep("setup");
+      }
+    } catch (e) {
+      setStep("setup");
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  const saveUserData = async () => {
+    if (!session) return;
+    try {
+      const accountData = accounts
+        .filter(a => uploads[a.id])
+        .map(a => {
+          const type = ACCOUNT_TYPES.find(t => t.id === a.type);
+          return {
+            account_id: String(a.id),
+            account_label: a.name || type?.label || "Konto",
+            account_type: a.type,
+            transactions: uploads[a.id].transactions,
+          };
+        });
+      await fetch("/api/userdata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + session },
+        body: JSON.stringify({ accounts, accountData }),
+      });
+    } catch {}
+  };
+
+  // Auto-login if session exists
+  useEffect(() => {
+    if (session && step === "intro") {
+      loadUserData(session);
+    }
+  }, []);
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -748,7 +866,7 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
 
             {/* CTA button */}
             <button
-              onClick={() => setStep("setup")}
+              onClick={() => setStep("auth")}
               style={{ width:"100%", background:"linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:16, padding:"18px", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", boxShadow:"0 8px 24px rgba(139,47,201,0.4)", letterSpacing:0.3 }}>
               Kom i gang →
             </button>
@@ -756,6 +874,86 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
             <p style={{ margin:"16px 0 0", fontSize:11, color: isDark ? "#555" : "#bbb", textAlign:"center" }}>
               Dine data forlader aldrig din enhed uden din tilladelse
             </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── AUTH STEP ──
+  if (step === "auth") {
+    const bg = isDark ? "#0f0f13" : "#fff";
+    const fg = isDark ? "#fff" : "#111";
+    const sub = isDark ? "#888" : "#666";
+    const border = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)";
+    const inputBg = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
+    const isLogin = authView === "login";
+
+    if (dataLoading) return (
+      <div style={S.shell}>
+        <div style={{ ...S.phone, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:20, background:bg }}>
+          <div style={{ fontSize:64 }}>👴🏼</div>
+          <div style={{ fontSize:16, fontWeight:700, color:fg }}>Henter dine data...</div>
+          <div style={{ width:200, height:6, background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)", borderRadius:3, overflow:"hidden" }}>
+            <div style={{ height:"100%", width:"60%", background:"linear-gradient(90deg,#8b2fc9,#e040fb)", borderRadius:3, animation:"pulse 1s infinite" }} />
+          </div>
+        </div>
+      </div>
+    );
+
+    return (
+      <div style={S.shell}>
+        <div style={{ ...S.phone, display:"flex", flexDirection:"column", background:bg }}>
+          <div style={{ padding:"16px 20px 0", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+            <button onClick={() => setStep("intro")} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:fg }}>←</button>
+          </div>
+          <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", padding:"0 28px 40px", gap:20 }}>
+            <div style={{ textAlign:"center" }}>
+              <div style={{ fontSize:52, marginBottom:10 }}>👴🏼</div>
+              <h1 style={{ margin:0, fontSize:26, fontWeight:800, color:fg }}>{isLogin ? "Velkommen tilbage" : "Opret konto"}</h1>
+              <p style={{ margin:"6px 0 0", fontSize:13, color:sub }}>{isLogin ? "Log ind for at hente dine data" : "Gem dine data og slip for at uploade igen"}</p>
+            </div>
+
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              <input
+                type="email"
+                placeholder="Email"
+                value={authEmail}
+                onChange={e => setAuthEmail(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && (isLogin ? login() : signup())}
+                style={{ background:inputBg, border:"1px solid "+border, borderRadius:12, padding:"13px 16px", color:fg, fontSize:14, outline:"none", width:"100%", boxSizing:"border-box" }}
+              />
+              <input
+                type="password"
+                placeholder="Adgangskode"
+                value={authPassword}
+                onChange={e => setAuthPassword(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && (isLogin ? login() : signup())}
+                style={{ background:inputBg, border:"1px solid "+border, borderRadius:12, padding:"13px 16px", color:fg, fontSize:14, outline:"none", width:"100%", boxSizing:"border-box" }}
+              />
+              {authError && <div style={{ fontSize:13, color:"#ef4444", textAlign:"center" }}>{authError}</div>}
+            </div>
+
+            <button
+              onClick={isLogin ? login : signup}
+              disabled={authLoading || !authEmail || !authPassword}
+              style={{ background: authLoading || !authEmail || !authPassword ? "rgba(128,128,128,0.3)" : "linear-gradient(135deg,#8b2fc9,#e040fb)", border:"none", borderRadius:14, padding:"16px", color:"#fff", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+              {authLoading ? "Vent..." : isLogin ? "Log ind" : "Opret konto"}
+            </button>
+
+            <div style={{ textAlign:"center" }}>
+              <button onClick={() => { setAuthView(isLogin ? "signup" : "login"); setAuthError(""); }}
+                style={{ background:"none", border:"none", color:"#9333ea", fontSize:13, cursor:"pointer" }}>
+                {isLogin ? "Har du ikke en konto? Opret her" : "Har du allerede en konto? Log ind"}
+              </button>
+            </div>
+
+            <div style={{ borderTop:"1px solid "+border, paddingTop:16, textAlign:"center" }}>
+              <button onClick={() => setStep("setup")}
+                style={{ background:"none", border:"none", color:sub, fontSize:12, cursor:"pointer" }}>
+                Fortsæt uden konto →
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -812,6 +1010,14 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
             setActiveAccount("all");
             setStep("app");
             track("session_start", null, { accounts: Object.keys(ups).length });
+            // Save to cloud if logged in
+            if (session) {
+              const accountData = accounts.filter(a => ups[a.id]).map(a => {
+                const type = ACCOUNT_TYPES.find(t => t.id === a.type);
+                return { account_id: String(a.id), account_label: a.name || type?.label || "Konto", account_type: a.type, transactions: ups[a.id].transactions };
+              });
+              fetch("/api/userdata", { method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+session}, body: JSON.stringify({ accounts, accountData }) }).catch(()=>{});
+            }
           }} />
         </div>
       </div>
@@ -1353,6 +1559,17 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
                 <div>
                   <div style={{ fontWeight:600 }}>{isDark ? "Skift til lys tilstand" : "Skift til mørk tilstand"}</div>
                 </div>
+              </button>
+
+              {userEmail && (
+                <div style={{ fontSize:12, color: isDark ? "#666" : "#999", textAlign:"center", padding:"4px 0" }}>
+                  Logget ind som {userEmail}
+                </div>
+              )}
+
+              <button onClick={() => { setSettingsOpen(false); logout(); }}
+                style={{ background:"none", border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.1)", borderRadius:14, padding:"12px 16px", color:"#ef4444", fontSize:13, cursor:"pointer" }}>
+                {userEmail ? "Log ud" : "Start forfra"}
               </button>
 
               <button onClick={() => setSettingsOpen(false)}
