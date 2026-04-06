@@ -54,6 +54,12 @@ export default async function handler(req, res) {
       session = loginData.access_token;
       refresh = loginData.refresh_token;
     }
+
+    // If still no session after auto-login — user already exists with different password
+    if (!session) {
+      return res.status(400).json({ error: "Der findes allerede en bruger med denne email" });
+    }
+
     return res.status(200).json({ user: data.user, session, refresh });
   }
 
