@@ -6,20 +6,35 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'No token' });
+  if (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null') {
+    return res.status(401).json({ error: 'No valid token' });
+  }
 
   const base = 'https://nxfcftjyrnlbyoxudemy.supabase.co/rest/v1';
-  const headers = {
+  // Use service key for DB operations, but verify user via auth endpoint first
+  const serviceHeaders = {
     'Content-Type': 'application/json',
     'apikey': process.env.SUPABASE_SECRET_KEY,
-    'Authorization': authHeader,
+    'Authorization': 'Bearer ' + process.env.SUPABASE_SECRET_KEY,
   };
+
+  // Always verify the user token first
+  const userRes = await fetch('https://nxfcftjyrnlbyoxudemy.supabase.co/auth/v1/user', {
+    headers: {
+      'apikey': process.env.SUPABASE_SECRET_KEY,
+      'Authorization': authHeader,
+    },
+  });
+  const user = await userRes.json();
+  if (!user.id) return res.status(401).json({ error: 'Invalid token' });
+
+  const userId = user.id;
 
   // GET - load user data
   if (req.method === 'GET') {
     const [accountsRes, txRes] = await Promise.all([
-      fetch(`${base}/user_accounts?select=*`, { headers }),
-      fetch(`${base}/user_transactions?select=*&order=created_at.desc`, { headers }),
+      fetch(`${base}/user_accounts?id=eq.${userId}&select=*`, { headers: serviceHeaders }),
+      fetch(`${base}/user_transactions?user_id=eq.${userId}&select=*&order=created_at.desc`, { headers: serviceHeaders }),
     ]);
     const accounts = await accountsRes.json();
     const transactions = await txRes.json();
@@ -32,39 +47,37 @@ export default async function handler(req, res) {
   // POST - save user data
   if (req.method === 'POST') {
     const { accounts, accountData } = req.body;
-    // accountData = [{ account_id, account_label, account_type, transactions }]
-
-    // Get user id from token
-    const userRes = await fetch('https://nxfcftjyrnlbyoxudemy.supabase.co/auth/v1/user', {
-      headers: { 'apikey': process.env.SUPABASE_SECRET_KEY, 'Authorization': authHeader },
-    });
-    const user = await userRes.json();
-    if (!user.id) return res.status(401).json({ error: 'Invalid token' });
+    if (!accountData?.length) return res.status(400).json({ error: 'No data' });
 
     // Upsert user_accounts
     await fetch(`${base}/user_accounts?on_conflict=id`, {
       method: 'POST',
-      headers: { ...headers, 'Prefer': 'resolution=merge-duplicates' },
-      body: JSON.stringify({ id: user.id, accounts }),
+      headers: { ...serviceHeaders, 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ id: userId, accounts }),
     });
 
     // Upsert each account's transactions
     for (const ad of accountData) {
-      // Check if exists
-      const existing = await fetch(`${base}/user_transactions?user_id=eq.${user.id}&account_id=eq.${ad.account_id}`, { headers });
+      const existing = await fetch(
+        `${base}/user_transactions?user_id=eq.${userId}&account_id=eq.${encodeURIComponent(ad.account_id)}`,
+        { headers: serviceHeaders }
+      );
       const existingData = await existing.json();
 
-      if (existingData.length > 0) {
-        await fetch(`${base}/user_transactions?user_id=eq.${user.id}&account_id=eq.${ad.account_id}`, {
-          method: 'PATCH',
-          headers: { ...headers, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ transactions: ad.transactions, updated_at: new Date().toISOString() }),
-        });
+      if (Array.isArray(existingData) && existingData.length > 0) {
+        await fetch(
+          `${base}/user_transactions?user_id=eq.${userId}&account_id=eq.${encodeURIComponent(ad.account_id)}`,
+          {
+            method: 'PATCH',
+            headers: { ...serviceHeaders, 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ transactions: ad.transactions, updated_at: new Date().toISOString() }),
+          }
+        );
       } else {
         await fetch(`${base}/user_transactions`, {
           method: 'POST',
-          headers: { ...headers, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ user_id: user.id, ...ad }),
+          headers: { ...serviceHeaders, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ user_id: userId, ...ad }),
         });
       }
     }
