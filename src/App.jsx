@@ -447,6 +447,7 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authError, setAuthError] = useState("");
+  const [authConfirmPassword, setAuthConfirmPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [session, setSession] = useState(() => localStorage.getItem("okonom-session") || null);
   const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem("okonom-refresh") || null);
@@ -578,6 +579,14 @@ export default function App() {
   };
 
   const signup = async () => {
+    if (authPassword !== authConfirmPassword) {
+      setAuthError("Adgangskoderne matcher ikke");
+      return;
+    }
+    if (authPassword.length < 6) {
+      setAuthError("Adgangskoden skal være mindst 6 tegn");
+      return;
+    }
     const s = await authFetch("signup");
     if (s) setStep("setup");
   };
@@ -931,6 +940,16 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
                 onKeyDown={e => e.key === "Enter" && (isLogin ? login() : signup())}
                 style={{ background:inputBg, border:"1px solid "+border, borderRadius:12, padding:"13px 16px", color:fg, fontSize:14, outline:"none", width:"100%", boxSizing:"border-box" }}
               />
+              {!isLogin && (
+                <input
+                  type="password"
+                  placeholder="Bekræft adgangskode"
+                  value={authConfirmPassword}
+                  onChange={e => setAuthConfirmPassword(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && signup()}
+                  style={{ background:inputBg, border:"1px solid "+(authConfirmPassword && authConfirmPassword !== authPassword ? "#ef4444" : border), borderRadius:12, padding:"13px 16px", color:fg, fontSize:14, outline:"none", width:"100%", boxSizing:"border-box" }}
+                />
+              )}
               {authError && <div style={{ fontSize:13, color:"#ef4444", textAlign:"center" }}>{authError}</div>}
             </div>
 
@@ -942,7 +961,7 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
             </button>
 
             <div style={{ textAlign:"center" }}>
-              <button onClick={() => { setAuthView(isLogin ? "signup" : "login"); setAuthError(""); }}
+              <button onClick={() => { setAuthView(isLogin ? "signup" : "login"); setAuthError(""); setAuthConfirmPassword(""); }}
                 style={{ background:"none", border:"none", color:"#9333ea", fontSize:13, cursor:"pointer" }}>
                 {isLogin ? "Har du ikke en konto? Opret her" : "Har du allerede en konto? Log ind"}
               </button>
