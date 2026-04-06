@@ -35,7 +35,7 @@
 <div id="login" class="login">
   <div style="font-size:48px">👴🏼</div>
   <h1>Økonom Admin</h1>
-  <p style="color:#888;font-size:14px">Admin login</p>
+  <p style="color:#888;font-size:14px">Kun til dig, Mads</p>
   <input type="password" id="pw" placeholder="Adgangskode" onkeydown="if(event.key==='Enter')load()" />
   <button class="btn" onclick="load()">Log ind</button>
   <p id="err" style="color:#ef4444;font-size:13px;display:none">Forkert adgangskode</p>
@@ -82,9 +82,10 @@ async function refresh() {
   document.getElementById('dashboard').style.display = 'block';
 
   // Cards
-  const { uniqueUsers, totalChats, totalUploads, totalSessions } = data.summary;
+  const { uniqueUsers, totalChats, totalUploads, totalSessions, totalSignups } = data.summary;
   document.getElementById('cards').innerHTML = [
     [uniqueUsers, '👤 Unikke brugere'],
+    [totalSignups, '✨ Oprettede konti'],
     [totalSessions, '🚀 Sessions'],
     [totalChats, '💬 Chats med Holger'],
     [totalUploads, '📁 CSV uploads'],
