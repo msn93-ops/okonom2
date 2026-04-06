@@ -19,7 +19,13 @@ export default async function handler(req, res) {
       body: JSON.stringify({ email, password }),
     });
     const data = await r.json();
-    if (data.error) return res.status(400).json({ error: data.error.message || data.msg });
+    if (data.error) {
+      const msg = data.error.message || data.msg || "";
+      if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("registered") || msg.toLowerCase().includes("exists")) {
+        return res.status(400).json({ error: "Der findes allerede en bruger med denne email" });
+      }
+      return res.status(400).json({ error: msg || "Noget gik galt — prøv igen" });
+    }
 
     // Track new user signup
     await fetch('https://nxfcftjyrnlbyoxudemy.supabase.co/rest/v1/events', {
