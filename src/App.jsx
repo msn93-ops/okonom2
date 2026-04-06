@@ -580,7 +580,7 @@ export default function App() {
 
   const signup = async () => {
     if (authPassword !== authConfirmPassword) {
-      setAuthError("Adgangskoderne matcher ikke");
+      setAuthError("Adgangkoderne er ikke identiske");
       return;
     }
     if (authPassword.length < 6) {
@@ -941,14 +941,19 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
                 style={{ background:inputBg, border:"1px solid "+border, borderRadius:12, padding:"13px 16px", color:fg, fontSize:14, outline:"none", width:"100%", boxSizing:"border-box" }}
               />
               {!isLogin && (
-                <input
-                  type="password"
-                  placeholder="Bekræft adgangskode"
-                  value={authConfirmPassword}
-                  onChange={e => setAuthConfirmPassword(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && signup()}
-                  style={{ background:inputBg, border:"1px solid "+(authConfirmPassword && authConfirmPassword !== authPassword ? "#ef4444" : border), borderRadius:12, padding:"13px 16px", color:fg, fontSize:14, outline:"none", width:"100%", boxSizing:"border-box" }}
-                />
+                <>
+                  <input
+                    type="password"
+                    placeholder="Bekræft adgangskode"
+                    value={authConfirmPassword}
+                    onChange={e => setAuthConfirmPassword(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && signup()}
+                    style={{ background:inputBg, border:"1px solid "+(authConfirmPassword && authConfirmPassword !== authPassword ? "#ef4444" : border), borderRadius:12, padding:"13px 16px", color:fg, fontSize:14, outline:"none", width:"100%", boxSizing:"border-box" }}
+                  />
+                  {authConfirmPassword && authConfirmPassword !== authPassword && (
+                    <div style={{ fontSize:12, color:"#ef4444", marginTop:-4 }}>⚠️ Adgangskoderne er ikke identiske</div>
+                  )}
+                </>
               )}
               {authError && <div style={{ fontSize:13, color:"#ef4444", textAlign:"center" }}>{authError}</div>}
             </div>
