@@ -618,11 +618,18 @@ export default function App() {
         const savedUploads = {};
         data.transactions.forEach(t => {
           // Dates need to be restored as Date objects
-          const txns = (t.transactions || []).map(tx => ({
-            ...tx,
-            date: tx.date ? new Date(tx.date) : null,
-            isIncome: typeof tx.isIncome === "boolean" ? tx.isIncome : tx.amount > 0,
-          }));
+          const txns = (t.transactions || []).map(tx => {
+            const cat = tx.category ? tx.category : "Andet";
+            const rule = CATEGORY_RULES.find(r => r.category === cat);
+            return {
+              ...tx,
+              date: tx.date ? new Date(tx.date) : null,
+              isIncome: typeof tx.isIncome === "boolean" ? tx.isIncome : tx.amount > 0,
+              icon: tx.icon || rule?.icon || "📌",
+              color: tx.color || rule?.color || "#78909C",
+              dateStr: tx.dateStr || (tx.date ? new Date(tx.date).toLocaleDateString("da-DK", { day:"2-digit", month:"short", year:"numeric" }) : "–"),
+            };
+          });
           savedUploads[t.account_id] = { fileName: "gemt", transactions: txns, done: true };
         });
         setAccounts(savedAccounts);
@@ -1099,20 +1106,26 @@ Husk samtalehistorik. Brug aldrig ** eller markdown.`;
             // Save to cloud if logged in
             const currentSession = localStorage.getItem("okonom-session");
             if (currentSession && currentSession !== "undefined" && currentSession !== "null") {
-              const accountData = accounts.filter(a => ups[a.id]).map(a => {
-                const type = ACCOUNT_TYPES.find(t => t.id === a.type);
+              // Build accountData from ups directly
+              const accountData = Object.entries(ups).map(([accId, upData]) => {
+                const acc = accounts.find(a => String(a.id) === String(accId));
+                const type = ACCOUNT_TYPES.find(t => t.id === acc?.type);
                 return {
-                  account_id: String(a.id),
-                  account_label: a.name || type?.label || "Konto",
-                  account_type: a.type,
-                  transactions: ups[a.id].transactions,
+                  account_id: String(accId),
+                  account_label: acc?.name || type?.label || "Konto",
+                  account_type: acc?.type || "loen",
+                  transactions: upData.transactions,
                 };
               });
               fetch("/api/userdata", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": "Bearer " + currentSession },
                 body: JSON.stringify({ accounts, accountData }),
-              }).then(r => r.json()).then(d => console.log("Saved:", d)).catch(e => console.error("Save error:", e));
+              }).then(r => r.json()).then(d => {
+                console.log("Gem svar:", JSON.stringify(d));
+              }).catch(e => console.error("Gem fejl:", e));
+            } else {
+              console.log("Ingen session — data gemmes ikke");
             }
           }} />
         </div>
