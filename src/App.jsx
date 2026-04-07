@@ -604,8 +604,9 @@ export default function App() {
   };
 
   const loadUserData = async (token) => {
-    const t = token || localStorage.getItem("okonom-session");
-    if (!t || t === "undefined" || t === "null") { setStep("setup"); return; }
+    const stored = localStorage.getItem("okonom-session");
+    const t = token || (stored && stored !== "undefined" && stored !== "null" && stored.length > 20 ? stored : null);
+    if (!t) { setStep("setup"); return; }
     setDataLoading(true);
     try {
       const r = await fetch("/api/userdata", {
@@ -670,8 +671,10 @@ export default function App() {
 
   // Auto-login if session exists
   useEffect(() => {
-    if (session && step === "intro") {
-      loadUserData(session);
+    const stored = localStorage.getItem("okonom-session");
+    const tok = stored && stored !== "undefined" && stored !== "null" && stored.length > 20 ? stored : null;
+    if (tok && step === "intro") {
+      loadUserData(tok);
     }
   }, []);
 
