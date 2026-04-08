@@ -1,4 +1,3 @@
-// api/userdata.js - Save and load user transactions
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -6,83 +5,102 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null') {
+  if (!authHeader || authHeader.includes('undefined') || authHeader.includes('null')) {
     return res.status(401).json({ error: 'No valid token' });
   }
 
-  const base = 'https://nxfcftjyrnlbyoxudemy.supabase.co/rest/v1';
-  // Use service key for DB operations, but verify user via auth endpoint first
-  const serviceHeaders = {
-    'Content-Type': 'application/json',
-    'apikey': process.env.SUPABASE_SECRET_KEY,
-    'Authorization': 'Bearer ' + process.env.SUPABASE_SECRET_KEY,
-  };
+  const SUPABASE_URL = 'https://nxfcftjyrnlbyoxudemy.supabase.co';
+  const SERVICE_KEY = process.env.SUPABASE_SECRET_KEY;
 
-  // Always verify the user token first
-  const userRes = await fetch('https://nxfcftjyrnlbyoxudemy.supabase.co/auth/v1/user', {
+  // Verify user token
+  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: {
-      'apikey': process.env.SUPABASE_SECRET_KEY,
+      'apikey': SERVICE_KEY,
       'Authorization': authHeader,
     },
   });
   const user = await userRes.json();
-  if (!user.id) return res.status(401).json({ error: 'Invalid token' });
+  if (!user.id) return res.status(401).json({ error: 'Invalid token', detail: user });
 
   const userId = user.id;
+  const dbHeaders = {
+    'Content-Type': 'application/json',
+    'apikey': SERVICE_KEY,
+    'Authorization': 'Bearer ' + SERVICE_KEY,
+    'Prefer': 'return=representation',
+  };
+  const base = `${SUPABASE_URL}/rest/v1`;
 
-  // GET - load user data
   if (req.method === 'GET') {
-    const [accountsRes, txRes] = await Promise.all([
-      fetch(`${base}/user_accounts?id=eq.${userId}&select=*`, { headers: serviceHeaders }),
-      fetch(`${base}/user_transactions?user_id=eq.${userId}&select=*&order=created_at.desc`, { headers: serviceHeaders }),
+    const [accRes, txRes] = await Promise.all([
+      fetch(`${base}/user_accounts?id=eq.${userId}`, { headers: dbHeaders }),
+      fetch(`${base}/user_transactions?user_id=eq.${userId}&order=created_at.desc`, { headers: dbHeaders }),
     ]);
-    const accounts = await accountsRes.json();
-    const transactions = await txRes.json();
+    const accData = await accRes.json();
+    const txData = await txRes.json();
     return res.status(200).json({
-      accounts: accounts[0]?.accounts || [],
-      transactions: Array.isArray(transactions) ? transactions : [],
+      accounts: accData[0]?.accounts || [],
+      transactions: Array.isArray(txData) ? txData : [],
     });
   }
 
-  // POST - save user data
   if (req.method === 'POST') {
     const { accounts, accountData } = req.body;
-    if (!accountData?.length) return res.status(400).json({ error: 'No data' });
+    if (!Array.isArray(accountData) || accountData.length === 0) {
+      return res.status(400).json({ error: 'No accountData' });
+    }
 
     // Upsert user_accounts
-    await fetch(`${base}/user_accounts?on_conflict=id`, {
+    const accUpsertRes = await fetch(`${base}/user_accounts`, {
       method: 'POST',
-      headers: { ...serviceHeaders, 'Prefer': 'resolution=merge-duplicates' },
-      body: JSON.stringify({ id: userId, accounts }),
+      headers: { ...dbHeaders, 'Prefer': 'resolution=merge-duplicates,return=minimal', 'on_conflict': 'id' },
+      body: JSON.stringify({ id: userId, accounts: accounts || [] }),
     });
+    if (!accUpsertRes.ok) {
+      const err = await accUpsertRes.text();
+      console.error('user_accounts upsert error:', err);
+    }
 
     // Upsert each account's transactions
     for (const ad of accountData) {
-      const existing = await fetch(
+      const checkRes = await fetch(
         `${base}/user_transactions?user_id=eq.${userId}&account_id=eq.${encodeURIComponent(ad.account_id)}`,
-        { headers: serviceHeaders }
+        { headers: dbHeaders }
       );
-      const existingData = await existing.json();
+      const existing = await checkRes.json();
 
-      if (Array.isArray(existingData) && existingData.length > 0) {
-        await fetch(
+      if (Array.isArray(existing) && existing.length > 0) {
+        const patchRes = await fetch(
           `${base}/user_transactions?user_id=eq.${userId}&account_id=eq.${encodeURIComponent(ad.account_id)}`,
           {
             method: 'PATCH',
-            headers: { ...serviceHeaders, 'Prefer': 'return=minimal' },
-            body: JSON.stringify({ transactions: ad.transactions, updated_at: new Date().toISOString() }),
+            headers: { ...dbHeaders, 'Prefer': 'return=minimal' },
+            body: JSON.stringify({
+              transactions: ad.transactions,
+              account_label: ad.account_label,
+              account_type: ad.account_type,
+              updated_at: new Date().toISOString(),
+            }),
           }
         );
+        if (!patchRes.ok) console.error('PATCH error:', await patchRes.text());
       } else {
-        await fetch(`${base}/user_transactions`, {
+        const postRes = await fetch(`${base}/user_transactions`, {
           method: 'POST',
-          headers: { ...serviceHeaders, 'Prefer': 'return=minimal' },
-          body: JSON.stringify({ user_id: userId, ...ad }),
+          headers: { ...dbHeaders, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            user_id: userId,
+            account_id: ad.account_id,
+            account_label: ad.account_label,
+            account_type: ad.account_type,
+            transactions: ad.transactions,
+          }),
         });
+        if (!postRes.ok) console.error('POST error:', await postRes.text());
       }
     }
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, userId, accounts: accountData.length });
   }
 
   return res.status(405).end();
